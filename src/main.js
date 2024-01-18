@@ -119,58 +119,58 @@ const createScene = function(){
         scene.inputStates.rotateRight = false;
 
         window.addEventListener("keydown", (event) => {
-            switch (event.key) {
-                case "w":
+            switch (event.keyCode) {
+                case 87:
                     scene.inputStates.up = true;
                     break;
-                case "s":
+                case 83:
                     scene.inputStates.down = true;
                     break;
-                case "a":
+                case 65:
                     scene.inputStates.left = true;
                     break;
-                case "d":
+                case 68:
                     scene.inputStates.right = true;
                     break;
-                case "t":
+                case 84:
                     scene.inputStates.jump = true;
                     break;
-                case "g":
+                case 71:
                     scene.inputStates.crouch = true;
                     break;
-                case "q":
+                case 81:
                     scene.inputStates.rotateLeft = true;
                     break;
-                case "e":
+                case 69:
                     scene.inputStates.rotateRight = true;
                     break;
             }
         });
 
         window.addEventListener("keyup", (event) => {
-            switch (event.key) {
-                case "w":
+            switch (event.keyCode) {
+                case 87:
                     scene.inputStates.up = false;
                     break;
-                case "s":
+                case 83:
                     scene.inputStates.down = false;
                     break;
-                case "a":
+                case 65:
                     scene.inputStates.left = false;
                     break;
-                case "d":
+                case 68:
                     scene.inputStates.right = false;
                     break;
-                case "t":
+                case 84:
                     scene.inputStates.jump = false;
                     break;
-                case "g":
+                case 71:
                     scene.inputStates.crouch = false;
                     break;
-                case "q":
+                case 81:
                     scene.inputStates.rotateLeft = false;
                     break;
-                case "e":
+                case 69:
                     scene.inputStates.rotateRight = false;
                     break;
             }
