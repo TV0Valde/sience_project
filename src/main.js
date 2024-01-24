@@ -7,13 +7,14 @@ import dat from 'dat.gui';
 
 let drone ;
 let building;
+
 const canvas = document.getElementById('renderCanvas');
 const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, stencil: true});
 const createScene = function(){
 
     const scene = new BABYLON.Scene(engine);
-
-      const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
+      const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
+    // const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
       camera.attachControl(canvas, true);
       camera.upperBetaLimit = Math.PI / 2.2;
       camera.radius = 5; // Радиус области видимости
@@ -47,7 +48,7 @@ const createScene = function(){
     ground.position = new BABYLON.Vector3(0,0,0);
 
     //добавление дрона
-    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
+    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone2.glb", scene, function (newMeshes) {
 
          drone = newMeshes[0];
         drone.rotationQuaternion = null;
@@ -175,48 +176,40 @@ const createScene = function(){
                     break;
             }
         });
-        drone.visibilityWidth = 0.1;
-        drone.visibilityHeight = 0.1;
-       drone.updateVisibilityRadius = function () {
-            plane.scaling.x =  drone.visibilityWidth ;
-            plane.scaling.y =  drone.visibilityHeight;
-
-            if(drone.position.z<5){
-                plane.scaling.x =plane.scaling.y =0.2 * Math.abs(drone.position.z-7);
-            }
-
-
-        };
-       // scene.registerBeforeRender(drone.updateVisibilityRadius);
-
         const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: 0.4, height: 0.3, updatable:true }, scene);
         const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
+        plane.visibility = 1;
         greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
         plane.material = greenMaterial;
         plane.material.alpha = 1;
-         plane.parent = loadedModel;
-       /* scene.registerBeforeRender(function () {
-        // Получаем текущее положение и направление вида камеры
-        let cameraPosition = camera.position.clone();
-        let cameraDirection = drone.getDirection(new BABYLON.Vector3(0, 0, 1)); // Например, вдоль оси Z
+       // plane.parent = drone;
+        console.log(drone.position);
+        let point =  drone.position.clone();
+        point.z += 0.001;
+        scene.registerBeforeRender(function (){
+            // Создание луча из камеры
+            point =  drone.position.clone();
+            point.z += 0.001;
+            console.log(drone.position);
+            console.log(point);
+            let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
+            let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
 
-// Создаем луч, направленный вдоль направления вида камеры от ее положения
-        let pickRay = new BABYLON.Ray(cameraPosition, cameraDirection);
+            let pickRay = new BABYLON.Ray(point,rotatedForwardVector,100);
+            let hit = scene.pickWithRay(pickRay);
+            if (hit.pickedMesh&&hit.pickedMesh !== plane) {
 
-// Используем pickWithRay для определения объектов, пересекаемых лучом
-        let pickInfo = scene.pickWithRay(pickRay);
+                plane.visibility = 1;
+               plane.position = hit.pickedPoint ;
 
-// Проверяем, есть ли пересечение
-        if (pickInfo.hit) {
-            // pickInfo.pickedMesh содержит информацию о выбранном объекте
-            var pickedMesh = pickInfo.pickedMesh;
-            console.log("Выбран объект:", pickedMesh);
+               // console.log("Выбран объект:",hit.pickedMesh);
+            }
+            else {
+                plane.visibility = 0;
+             //   console.log("Нет пересечений с объектами в направлении вида камеры.");
+            }
 
-            // Теперь вы можете использовать pickInfo.pickedPoint и другие данные по необходимости
-        } else {
-            console.log("Нет пересечений с объектами в направлении вида камеры.");
-        }
-        });*/
+        })
     });
 
     return scene;
