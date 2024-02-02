@@ -13,8 +13,8 @@ const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, st
 const createScene = function(){
 
     const scene = new BABYLON.Scene(engine);
-      const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
-    // const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
+   // const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
+     const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
       camera.attachControl(canvas, true);
       camera.upperBetaLimit = Math.PI / 2.2;
       camera.radius = 5; // Радиус области видимости
@@ -48,11 +48,10 @@ const createScene = function(){
     ground.position = new BABYLON.Vector3(0,0,0);
 
     //добавление дрона
-    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone2.glb", scene, function (newMeshes) {
-
+    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","wtf.glb", scene, function (newMeshes) {
          drone = newMeshes[0];
         drone.rotationQuaternion = null;
-        drone.position.y = 1;
+        drone.position.y = 2;
         drone.position.x = 1;
         drone.position.z = 0;
         drone.scaling.z = 0.1;
@@ -176,38 +175,54 @@ const createScene = function(){
                     break;
             }
         });
-        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: 0.4, height: 0.3, updatable:true }, scene);
+        let planeWidth = 0.3;
+        let planeHeight = 0.4;
+       // let intialFOV = BABYLON.Tools.ToRadians(72);
+        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight}, scene);
+
         const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
-        plane.visibility = 1;
+        plane.visibility = 0;
+
         greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
         plane.material = greenMaterial;
         plane.material.alpha = 1;
-       // plane.parent = drone;
-        console.log(drone.position);
+
+
         let point =  drone.position.clone();
-        point.z += 0.001;
+       // point.z += 0.005;
+      /*  function planeScale(target,plane){
+            let distance = BABYLON.Vector3.Distance(drone.position,target);
+            let newHeight = 2* distance * Math.tan(intialFOV/2);
+            let newWidth = newHeight *(4/3);
+            plane.height = newHeight;
+            plane.width = newWidth;
+        }*/
         scene.registerBeforeRender(function (){
             // Создание луча из камеры
-            point =  drone.position.clone();
-            point.z += 0.001;
-            console.log(drone.position);
-            console.log(point);
-            let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
-            let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
+           point =  drone.position.clone();
+            //point.z += 0.001;
+            //console.log(drone.position);
+            //console.log(point);
 
-            let pickRay = new BABYLON.Ray(point,rotatedForwardVector,100);
-            let hit = scene.pickWithRay(pickRay);
-            if (hit.pickedMesh&&hit.pickedMesh !== plane) {
+                let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
+                let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
 
-                plane.visibility = 1;
-               plane.position = hit.pickedPoint ;
+                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
+                let hit = scene.pickWithRay(pickRay);
+                // planeScale(hit.pickedPoint,plane);
+                if (hit.pickedMesh && hit.pickedMesh !== plane) {
 
-               // console.log("Выбран объект:",hit.pickedMesh);
-            }
-            else {
-                plane.visibility = 0;
-             //   console.log("Нет пересечений с объектами в направлении вида камеры.");
-            }
+                    plane.visibility = 1;
+                    plane.position = hit.pickedPoint;
+                    plane.rotation.y = drone.rotation.y;
+
+                    console.log("Выбран объект:", hit.pickedMesh);
+                } else if (hit.pickedMesh && hit.pickedMesh === drone) {
+                    plane.visibility = 0;
+                } else {
+                    plane.visibility = 0;
+                    console.log("Нет пересечений с объектами в направлении вида камеры.");
+                }
 
         })
     });
@@ -268,3 +283,5 @@ engine.runRenderLoop(function(){
 window.addEventListener('resize', function(){
     engine.resize();
 });
+
+
