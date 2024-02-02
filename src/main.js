@@ -13,9 +13,9 @@ const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, st
 const createScene = function(){
 
     const scene = new BABYLON.Scene(engine);
-   // const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
-     const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
-      camera.attachControl(canvas, true);
+     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
+     //const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
+      camera.attachControl(true);
       camera.upperBetaLimit = Math.PI / 2.2;
       camera.radius = 5; // Радиус области видимости
       camera.heightOffset = 3; // Высота области видимости
@@ -175,10 +175,10 @@ const createScene = function(){
                     break;
             }
         });
-        let planeWidth = 0.3;
-        let planeHeight = 0.4;
-       // let intialFOV = BABYLON.Tools.ToRadians(72);
-        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight}, scene);
+        let planeWidth = 0.4;
+        let planeHeight = 0.3;
+        let FOV = BABYLON.Tools.ToRadians(72);
+        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
 
         const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
         plane.visibility = 0;
@@ -189,39 +189,36 @@ const createScene = function(){
 
 
         let point =  drone.position.clone();
-       // point.z += 0.005;
-      /*  function planeScale(target,plane){
-            let distance = BABYLON.Vector3.Distance(drone.position,target);
-            let newHeight = 2* distance * Math.tan(intialFOV/2);
-            let newWidth = newHeight *(4/3);
-            plane.height = newHeight;
-            plane.width = newWidth;
-        }*/
+
+
         scene.registerBeforeRender(function (){
-            // Создание луча из камеры
+
            point =  drone.position.clone();
-            //point.z += 0.001;
-            //console.log(drone.position);
-            //console.log(point);
+
 
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
-
                 let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
                 let hit = scene.pickWithRay(pickRay);
-                // planeScale(hit.pickedPoint,plane);
-                if (hit.pickedMesh && hit.pickedMesh !== plane) {
 
+
+                if (hit.pickedMesh && hit.pickedMesh !== plane) {
+                    let distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
+                   plane.scaling.x = 2* distance * Math.tan(FOV/2)*0.3;
+                    plane.scaling.y =  plane.scaling.x *(4/3)*0.3 ;
+                   //    plane.height = 1;
+                   // plane.width = 2 ;
                     plane.visibility = 1;
                     plane.position = hit.pickedPoint;
                     plane.rotation.y = drone.rotation.y;
-
-                    console.log("Выбран объект:", hit.pickedMesh);
-                } else if (hit.pickedMesh && hit.pickedMesh === drone) {
+                    console.log(distance);
+                    console.log( plane.scaling.x);
+                    console.log(plane.scaling.y);
+                  //  console.log("Выбран объект:", hit.pickedMesh);
+                }
+                else {
                     plane.visibility = 0;
-                } else {
-                    plane.visibility = 0;
-                    console.log("Нет пересечений с объектами в направлении вида камеры.");
+                    //console.log("Нет пересечений с объектами в направлении вида камеры.");
                 }
 
         })
@@ -237,7 +234,7 @@ const gui = new dat.GUI();
 
 
 const parameters = {
-    selectedModel: 'build_m.glb', // Начальное значение параметра
+    selectedModel: 'build2.glb', // Начальное значение параметра
 };
 
 
