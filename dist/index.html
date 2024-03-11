@@ -12,12 +12,21 @@
         html, body{
             margin:0;
         }
-
+        #distance{
+            position: absolute;
+            right:0;
+            bottom: 0;
+      
+            color: white;
+        }
+        #miniWindow { position: absolute; top: 10px; left: 10px; width: 200px; height: 200px; border: 1px solid black; }
     </style>
 </head>
 <body>
-
-<canvas id="renderCanvas"></canvas>
+<!--<div id="miniWindow"></div>-->
+<canvas id="renderCanvas">
+</canvas>
+<div id="distance"></div>
 
 <script src="/dist/bundle.js">
 </script>

@@ -2,25 +2,74 @@ import * as BABYLON from 'babylonjs';
 import "@babylonjs/loaders/glTF";
 import 'babylonjs-loaders'
 import dat from 'dat.gui';
+import {convertRatioToExpression} from "./convert";
 
-
-
+let miniWindow = document.getElementById("miniWindow");
 let drone ;
 let building;
 let angle = 72;
+let distance;
+let input_distance = document.getElementById('distance');
 let FOV = BABYLON.Tools.ToRadians(angle);
 let format = convertRatioToExpression('1:1');
 const canvas = document.getElementById('renderCanvas');
 const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, stencil: true});
+
 const createScene = function(){
     const scene = new BABYLON.Scene(engine);
+
+
      const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
-     //const camera = new BABYLON.ArcRotateCamera("camera",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
-      camera.attachControl(true);
-      camera.upperBetaLimit = Math.PI / 2.2;
-      camera.radius = 5; // Радиус области видимости
-      camera.heightOffset = 3; // Высота области видимости
-      camera.rotationOffset = 180; // Поворот области видимости (в градусах)
+
+    camera.attachControl(true);
+    camera.upperBetaLimit = Math.PI / 2.2;
+    camera.radius = 5; // Радиус области видимости
+    camera.heightOffset = 3; // Высота области видимости
+    camera.rotationOffset = 180; // Поворот области видимости (в градусах)
+    //мини окно
+    //const miniPoint = BABYLON.MeshBuilder.CreateSphere("point",{diameter:0.00001});
+    let planeWidth = 0.1;
+    let planeHeight = 0.1;
+    const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
+    const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
+    plane.visibility = 0;
+    greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
+    plane.material = greenMaterial;
+    plane.material.alpha = 1;
+
+
+    //var miniMap = new BABYLON.ArcRotateCamera("miniMap", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3(0,0,50) , scene);
+   let miniMap = new BABYLON.FollowCamera("minimap", new BABYLON.Vector3(0,0,100),scene,drone);
+   // let miniMap = new BABYLON.ArcRotateCamera("miniMap",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
+    miniMap.layerMask = 2;
+    miniMap.attachControl(true);
+    miniMap.upperBetaLimit = Math.PI / 2.2;
+    miniMap.radius = 5; // Радиус области видимости
+    miniMap.heightOffset = 10; // Высота области видимости
+    miniMap.rotationOffset = 180; // Поворот области видимости (в градусах)
+
+    scene.activeCameras.push(camera);
+
+
+    let rt2 = new BABYLON.RenderTargetTexture("depth", 1024, scene, true, true);
+    scene.customRenderTargets.push(rt2);
+    rt2.activeCamera = miniMap;
+    rt2.renderList = building;
+
+    let miniMapMaterial = new BABYLON.StandardMaterial("texturePlane", scene);
+    miniMapMaterial.diffuseColor = new BABYLON.Color3(1,1,1);
+    miniMapMaterial.diffuseTexture = rt2;
+    miniMapMaterial.specularColor = BABYLON.Color3.Black();
+
+    miniMapMaterial.diffuseTexture.level = 1.2; // intensity
+    miniMapMaterial.emissiveColor = new BABYLON.Color3(1,1,1); // backlight
+
+    // create miniMap Plane
+    let miniMapPlane = BABYLON.Mesh.CreatePlane("plane", 4, scene);
+    miniMapPlane.position = new BABYLON.Vector3(-canvas.width/125, -canvas.height/150, 20)
+    miniMapPlane.material = miniMapMaterial;
+    miniMapPlane.parent = camera;
+    miniMapPlane.layerMask = 1;
     //Свет
     const  light = new BABYLON.HemisphericLight("light",new BABYLON.Vector3(0,1,0),scene);
     light.intensity = 0.5;
@@ -38,15 +87,17 @@ const createScene = function(){
     },scene)
     skybox.infiniteDistance = true;
     skybox.material = skyboxMaterial;
-    //Земля
+
     let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 500, height: 500 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/grass.jpg", scene);
     ground.material = groundMaterial;
     ground.position = new BABYLON.Vector3(0,0,0);
+//мини-окно
 
-    //добавление дрона
-    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","wtf.glb", scene, function (newMeshes) {
+
+
+    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
         drone = newMeshes[0];
         drone.rotationQuaternion = null;
         drone.position.y = 2;
@@ -56,11 +107,12 @@ const createScene = function(){
         drone.scaling.x = 0.1;
         drone.scaling.y = 0.1;
         camera.parent = drone;
+        miniMap.parent =camera;
         //задание скорости
         let speed = 0.1;
         let rotationSpeed = 0.02;
         let direction = new BABYLON.Vector3(0, 0, 1);
-// Обработка клавиш
+
         scene.onBeforeRenderObservable.add(() => {
             // Поворот модели
             if (scene.inputStates.rotateLeft) {
@@ -169,14 +221,7 @@ const createScene = function(){
                     break;
             }
         });
-        let planeWidth = 0.1;
-        let planeHeight = 0.1;
-        const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
-        const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
-        plane.visibility = 0;
-        greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
-        plane.material = greenMaterial;
-        plane.material.alpha = 1;
+
 
         let point =  drone.position.clone();
 
@@ -189,32 +234,31 @@ const createScene = function(){
                 let hit = scene.pickWithRay(pickRay);
 
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
-                    let distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
-                    let boundingInfo = hit.pickedMesh.getBoundingInfo();
-                    let size = boundingInfo.boundingBox.extendSizeWorld;
-                     plane.scaling.y = 2* distance * Math.tan(FOV/2);
+                     distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
+                    /*let boundingInfo = hit.pickedMesh.getBoundingInfo();
+                    let size = boundingInfo.boundingBox.extendSizeWorld;*/
+
+                    plane.scaling.y = 2* distance * Math.tan(FOV/2);
                      if (format ===1){
                          plane.scaling.x = plane.scaling.y;
-                         plane.scaling.y = 2* distance * Math.tan(FOV/2);
                      }
-                     else if (format > 1){
+                     else {
                          plane.scaling.x =  plane.scaling.y *(format);
-                         plane.scaling.y = 2* distance * Math.tan(FOV/2);
+
                      }
-                     else
-                     plane.scaling.x =  plane.scaling.y / (format) ;
-                    let planeInfo = plane.getBoundingInfo();
-                    let planesize = planeInfo.boundingBox.extendSizeWorld;
+
+                  /*  let planeInfo = plane.getBoundingInfo();
+                    let planesize = planeInfo.boundingBox.extendSizeWorld;*/
                     plane.visibility = 1;
                     plane.position = hit.pickedPoint;
                     plane.rotation.y = drone.rotation.y;
-                   // console.log(plane.scaling.x/plane.scaling.y);
-                    //console.log("Формат ",format);
-                   // console.log("Размер плоскости",planesize);
+
+                    GetDistance();
 
                 }
                 else {
                     plane.visibility = 0;
+
 
                 }
         })
@@ -224,21 +268,29 @@ const createScene = function(){
 }
 
 const scene = createScene();
+engine.runRenderLoop(function(){
+    scene.render();
+});
 
+window.addEventListener('resize', function(){
+    engine.resize();
+});
+
+function GetDistance(){
+    input_distance.innerHTML = distance;
+}
 
 const gui = new dat.GUI();
 
-
 const parameters = {
-    inputValue: angle  ,// Начальное значение
-    selectedModel: 'build2.glb', // Начальное значение параметра
+    inputValue: angle  ,
+    selectedModel: 'build2.glb',
     selectedOption: 'Option1',
 };
 let options = ['4:3','3:4','16:9','1:1','2:3','3:2','21:9'];
 
 let loadedModel;
 
-// Функция для загрузки и отображения модели
 function loadAndShowModel(modelPath) {
 
     if (loadedModel) {
@@ -274,8 +326,6 @@ inputField.onChange(function(value) {
     // Обновляем переменную с новым значением
     angle = value;
      FOV = BABYLON.Tools.ToRadians(angle);
-    // console.log("New value:", angle); // Выводим новое значение в консоль (для проверки)
-    // console.log(FOV);
 });
 
 SelectField.onChange(function (value) {
@@ -284,17 +334,6 @@ SelectField.onChange(function (value) {
 
 loadAndShowModel(parameters.selectedModel);
 
-engine.runRenderLoop(function(){
-    scene.render();
-});
 
-window.addEventListener('resize', function(){
-    engine.resize();
-});
 
-function convertRatioToExpression(str) {
-    const parts = str.split(":");
-    const numerator = parseInt(parts[0]);
-    const denominator = parseInt(parts[1]);
-    return numerator / denominator;
-}
+
