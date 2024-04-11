@@ -11,11 +11,12 @@
         }
         html, body{
             margin:0;
+            overflow: hidden;
         }
         #distance{
             position: absolute;
             right:0;
-            bottom: 0;
+            bottom: 1px;
       
             color: white;
         }
@@ -23,12 +24,11 @@
     </style>
 </head>
 <body>
-<!--<div id="miniWindow"></div>-->
 <canvas id="renderCanvas">
 </canvas>
 <div id="distance"></div>
-
 <script src="/dist/bundle.js">
 </script>
+<!--<script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>-->
 </body>
 </html>

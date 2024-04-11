@@ -1,10 +1,13 @@
+// Библиотеки
 import * as BABYLON from 'babylonjs';
 import "@babylonjs/loaders/glTF";
 import 'babylonjs-loaders'
 import dat from 'dat.gui';
-import {convertRatioToExpression} from "./convert";
-
-let miniWindow = document.getElementById("miniWindow");
+import * as GUI from 'babylonjs-gui';
+import {convertRatioToExpression,GetDistance} from "./functions";
+import {options,modelOptions} from"./gui";
+//создание переменных
+let loadedModel;
 let drone ;
 let building;
 let angle = 72;
@@ -14,20 +17,19 @@ let FOV = BABYLON.Tools.ToRadians(angle);
 let format = convertRatioToExpression('1:1');
 const canvas = document.getElementById('renderCanvas');
 const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, stencil: true});
-
+//Создание сцены
 const createScene = function(){
     const scene = new BABYLON.Scene(engine);
-
-
-     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
-
+//Камера
+    //const camera = new BABYLON.ArcRotateCamera("miniMap", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
+    const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
     camera.radius = 5; // Радиус области видимости
     camera.heightOffset = 3; // Высота области видимости
     camera.rotationOffset = 180; // Поворот области видимости (в градусах)
-    //мини окно
-    //const miniPoint = BABYLON.MeshBuilder.CreateSphere("point",{diameter:0.00001});
+
+    //создание плоскости(области видимости)
     let planeWidth = 0.1;
     let planeHeight = 0.1;
     const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
@@ -38,38 +40,6 @@ const createScene = function(){
     plane.material.alpha = 1;
 
 
-    //var miniMap = new BABYLON.ArcRotateCamera("miniMap", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3(0,0,50) , scene);
-   let miniMap = new BABYLON.FollowCamera("minimap", new BABYLON.Vector3(0,0,100),scene,drone);
-   // let miniMap = new BABYLON.ArcRotateCamera("miniMap",-Math.PI/2,Math.PI/2, 5, new BABYLON.Vector3());
-    miniMap.layerMask = 2;
-    miniMap.attachControl(true);
-    miniMap.upperBetaLimit = Math.PI / 2.2;
-    miniMap.radius = 5; // Радиус области видимости
-    miniMap.heightOffset = 10; // Высота области видимости
-    miniMap.rotationOffset = 180; // Поворот области видимости (в градусах)
-
-    scene.activeCameras.push(camera);
-
-
-    let rt2 = new BABYLON.RenderTargetTexture("depth", 1024, scene, true, true);
-    scene.customRenderTargets.push(rt2);
-    rt2.activeCamera = miniMap;
-    rt2.renderList = building;
-
-    let miniMapMaterial = new BABYLON.StandardMaterial("texturePlane", scene);
-    miniMapMaterial.diffuseColor = new BABYLON.Color3(1,1,1);
-    miniMapMaterial.diffuseTexture = rt2;
-    miniMapMaterial.specularColor = BABYLON.Color3.Black();
-
-    miniMapMaterial.diffuseTexture.level = 1.2; // intensity
-    miniMapMaterial.emissiveColor = new BABYLON.Color3(1,1,1); // backlight
-
-    // create miniMap Plane
-    let miniMapPlane = BABYLON.Mesh.CreatePlane("plane", 4, scene);
-    miniMapPlane.position = new BABYLON.Vector3(-canvas.width/125, -canvas.height/150, 20)
-    miniMapPlane.material = miniMapMaterial;
-    miniMapPlane.parent = camera;
-    miniMapPlane.layerMask = 1;
     //Свет
     const  light = new BABYLON.HemisphericLight("light",new BABYLON.Vector3(0,1,0),scene);
     light.intensity = 0.5;
@@ -87,21 +57,46 @@ const createScene = function(){
     },scene)
     skybox.infiniteDistance = true;
     skybox.material = skyboxMaterial;
-
+//Земля
     let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 500, height: 500 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/grass.jpg", scene);
     ground.material = groundMaterial;
     ground.position = new BABYLON.Vector3(0,0,0);
-//мини-окно
+
+    //мини окно
+    let miniMap = new BABYLON.FollowCamera("minimap", new BABYLON.Vector3(0,0,98),scene,drone);
+    miniMap.layerMask = 2;
+    miniMap.attachControl(true);
+    miniMap.upperBetaLimit = Math.PI / 2.2;
+    miniMap.radius = 5; // Радиус области видимости
+    miniMap.heightOffset = 10; // Высота области видимости
+    miniMap.rotationOffset = 180; // Поворот области видимости (в градусах)
+    scene.activeCameras.push(camera);
+    let rt2 = new BABYLON.RenderTargetTexture("depth", 1024, scene, true, true);
+    scene.customRenderTargets.push(rt2);
+    rt2.activeCamera = miniMap;
+    rt2.renderList = building;
+    let miniMapMaterial = new BABYLON.StandardMaterial("texturePlane", scene);
+    miniMapMaterial.diffuseColor = new BABYLON.Color3(1,1,1);
+    miniMapMaterial.diffuseTexture = rt2;
+    miniMapMaterial.specularColor = BABYLON.Color3.Black();
+    miniMapMaterial.diffuseTexture.level = 1.2; // intensity
+    miniMapMaterial.emissiveColor = new BABYLON.Color3(1,1,1); // backlight
+    let miniMapPlane = BABYLON.Mesh.CreatePlane("plane", 4, scene);
+    miniMapPlane.position = new BABYLON.Vector3(-canvas.width/92, -canvas.height/150, 20)
+    miniMapPlane.material = miniMapMaterial;
+    miniMapPlane.parent = camera;
+    miniMapPlane.layerMask = 1;
 
 
-
-    const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
-        drone = newMeshes[0];
+//Модуль БПЛА
+        const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
+            drone = newMeshes[0];
+            drone.checkCollisions = true;
         drone.rotationQuaternion = null;
         drone.position.y = 2;
-        drone.position.x = 1;
+        drone.position.x = -10;
         drone.position.z = 0;
         drone.scaling.z = 0.1;
         drone.scaling.x = 0.1;
@@ -223,9 +218,13 @@ const createScene = function(){
         });
 
 
+
+
         let point =  drone.position.clone();
 
+//обработка приближения/отдаления
         scene.registerBeforeRender(function (){
+
 
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
@@ -235,84 +234,110 @@ const createScene = function(){
 
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
                      distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
-                    /*let boundingInfo = hit.pickedMesh.getBoundingInfo();
-                    let size = boundingInfo.boundingBox.extendSizeWorld;*/
-
                     plane.scaling.y = 2* distance * Math.tan(FOV/2);
+                    if (distance < 9.5){
+                        ///console.log("маленькая дистанция");
+                        miniMap.position = new BABYLON.Vector3(0,0,0);
+                    }
+                    else {
+                        miniMap.position = new BABYLON.Vector3(0,0,98);
+                    }
                      if (format ===1){
                          plane.scaling.x = plane.scaling.y;
+
                      }
                      else {
                          plane.scaling.x =  plane.scaling.y *(format);
-
                      }
-
-                  /*  let planeInfo = plane.getBoundingInfo();
-                    let planesize = planeInfo.boundingBox.extendSizeWorld;*/
                     plane.visibility = 1;
                     plane.position = hit.pickedPoint;
                     plane.rotation.y = drone.rotation.y;
-
-                    GetDistance();
-
+                    GetDistance(input_distance,distance);
+                    console.log();
                 }
                 else {
                     plane.visibility = 0;
-
-
                 }
+
         })
     });
+    let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+
+    function openModal(){
+        const modal = new GUI.Rectangle();
+        modal.width ="200px";
+        modal.height = "500px";
+       // modal.cornerRadius = 20;
+        modal.color ="white";
+        modal.background = "black";
+        modal.alpha = 0.8;
+        advancedTexture.addControl(modal);
+
+        const textBlock = new GUI.TextBlock();
+        textBlock.text = "Something";
+        textBlock.color ="white";
+        modal.addControl(textBlock);
+
+        const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
+        closeButton.width = "10px";
+        closeButton.height ="10px";
+        closeButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        closeButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        closeButton.color = "White";
+        closeButton.background ="green";
+        closeButton.onPointerClickObservable.add(()=>{
+            modal.dispose();
+        });
+        modal.addControl(closeButton);
+
+        modal.linkOffsetX = 0;
+        modal.linkOffsetY = 0;
+        modal.linkOffsetZ = -200;
+    }
+    //-3,2,9.89
+    const  points = [];
+    for (let i = 0; i<5; i++){
+        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
+        point.visibility = 0;
+
+        point.position = new BABYLON.Vector3(-3 * i*10,2,9.89);
+        points.push(point);
+    }
+    points.forEach((point,index) => {
+        const button = GUI.Button.CreateSimpleButton("button"+ index,"");
+        button.width = "25px";
+        button.height = "25px";
+        button.cornerRadius = 25;
+        button.color = "white";
+        button.background = "green";
+        button.onPointerClickObservable.add(() =>{
+            openModal();
+        });
+        advancedTexture.addControl(button);
+        button.linkWithMesh(point);
+        button.linkOffsetY = -50;
+    });
+
 
     return scene;
 }
-
+//создание сцены
 const scene = createScene();
 engine.runRenderLoop(function(){
     scene.render();
 });
-
 window.addEventListener('resize', function(){
     engine.resize();
 });
 
-function GetDistance(){
-    input_distance.innerHTML = distance;
-}
+//Модуль GUI
 
 const gui = new dat.GUI();
-
-const parameters = {
+ const parameters = {
     inputValue: angle  ,
     selectedModel: 'build2.glb',
     selectedOption: 'Option1',
 };
-let options = ['4:3','3:4','16:9','1:1','2:3','3:2','21:9'];
-
-let loadedModel;
-
-function loadAndShowModel(modelPath) {
-
-    if (loadedModel) {
-        loadedModel.dispose();
-    }
-
-    BABYLON.SceneLoader.ImportMesh('', '/assets/models/', modelPath, scene, function (meshes) {
-
-        loadedModel = meshes[0];
-        building = loadedModel;
-        loadedModel.position = new BABYLON.Vector3(0,0.5,20);
-
-    });
-}
-
-
-const modelOptions = {
-    'Модель 1': 'build_m.glb',
-    'Модель 2': 'example_m.glb',
-    'Модель 3': 'build2.glb'
-};
-
 
 const modelSelect = gui.add(parameters, 'selectedModel', Object.keys(modelOptions)).name('Выберите модель');
 const inputField = gui.add(parameters, 'inputValue').name('Введите угол');
@@ -334,6 +359,16 @@ SelectField.onChange(function (value) {
 
 loadAndShowModel(parameters.selectedModel);
 
+function loadAndShowModel(modelPath) {
+    if (loadedModel) {
+        loadedModel.dispose();
+    }
+    BABYLON.SceneLoader.ImportMesh('', '/assets/models/', modelPath, scene, function (meshes) {
 
+        loadedModel = meshes[0];
+        building = loadedModel;
+        loadedModel.position = new BABYLON.Vector3(0,0.5,20);
+        loadedModel.checkCollisions = true;
 
-
+    });
+}
