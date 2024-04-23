@@ -8,6 +8,7 @@ import {convertRatioToExpression,GetDistance} from "./functions";
 import {options,modelOptions} from"./gui";
 //создание переменных
 let loadedModel;
+let divFps = document.getElementById("fps");
 let drone ;
 let building;
 let angle = 72;
@@ -21,7 +22,7 @@ const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, st
 const createScene = function(){
     const scene = new BABYLON.Scene(engine);
 //Камера
-    //const camera = new BABYLON.ArcRotateCamera("miniMap", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
+   // const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
@@ -37,7 +38,7 @@ const createScene = function(){
     plane.visibility = 0;
     greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
     plane.material = greenMaterial;
-    plane.material.alpha = 1;
+    plane.material.alpha = 0.5;
 
 
     //Свет
@@ -53,12 +54,12 @@ const createScene = function(){
     skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture('/assets/images/skybox/sky',scene);
     skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     const  skybox = BABYLON.MeshBuilder.CreateBox('skybox',{
-        size:1000
+        size:300
     },scene)
     skybox.infiniteDistance = true;
     skybox.material = skyboxMaterial;
 //Земля
-    let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 500, height: 500 });
+    let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 300, height: 300 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/grass.jpg", scene);
     ground.material = groundMaterial;
@@ -67,6 +68,7 @@ const createScene = function(){
     //мини окно
     let miniMap = new BABYLON.FollowCamera("minimap", new BABYLON.Vector3(0,0,98),scene,drone);
     miniMap.layerMask = 2;
+    
     miniMap.attachControl(true);
     miniMap.upperBetaLimit = Math.PI / 2.2;
     miniMap.radius = 5; // Радиус области видимости
@@ -84,7 +86,8 @@ const createScene = function(){
     miniMapMaterial.diffuseTexture.level = 1.2; // intensity
     miniMapMaterial.emissiveColor = new BABYLON.Color3(1,1,1); // backlight
     let miniMapPlane = BABYLON.Mesh.CreatePlane("plane", 4, scene);
-    miniMapPlane.position = new BABYLON.Vector3(-canvas.width/92, -canvas.height/150, 20)
+    //  miniMapPlane.position = new BABYLON.Vector3(0, 0, 20)
+    miniMapPlane.position = new BABYLON.Vector3(0, -canvas.height/100, 20)
     miniMapPlane.material = miniMapMaterial;
     miniMapPlane.parent = camera;
     miniMapPlane.layerMask = 1;
@@ -93,7 +96,7 @@ const createScene = function(){
 //Модуль БПЛА
         const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
             drone = newMeshes[0];
-            drone.checkCollisions = true;
+            
         drone.rotationQuaternion = null;
         drone.position.y = 2;
         drone.position.x = -10;
@@ -102,7 +105,7 @@ const createScene = function(){
         drone.scaling.x = 0.1;
         drone.scaling.y = 0.1;
         camera.parent = drone;
-        miniMap.parent =camera;
+       miniMap.parent =camera;
         //задание скорости
         let speed = 0.1;
         let rotationSpeed = 0.02;
@@ -221,11 +224,10 @@ const createScene = function(){
 
 
         let point =  drone.position.clone();
-
 //обработка приближения/отдаления
         scene.registerBeforeRender(function (){
 
-
+            divFps.innerHTML = engine.getFps().toFixed() + " fps";
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
@@ -235,16 +237,12 @@ const createScene = function(){
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
                      distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
                     plane.scaling.y = 2* distance * Math.tan(FOV/2);
-                    if (distance < 9.5){
-                        ///console.log("маленькая дистанция");
-                        miniMap.position = new BABYLON.Vector3(0,0,0);
-                    }
-                    else {
-                        miniMap.position = new BABYLON.Vector3(0,0,98);
-                    }
+                    if (distance < 9.5)                
+                        miniMap.position = new BABYLON.Vector3(0,0,0);           
+                    else 
+                        miniMap.position = new BABYLON.Vector3(0,0,98);     
                      if (format ===1){
-                         plane.scaling.x = plane.scaling.y;
-
+                         plane.scaling.x = plane.scaling.y;   
                      }
                      else {
                          plane.scaling.x =  plane.scaling.y *(format);
@@ -253,31 +251,107 @@ const createScene = function(){
                     plane.position = hit.pickedPoint;
                     plane.rotation.y = drone.rotation.y;
                     GetDistance(input_distance,distance);
-                    console.log();
+                   
                 }
                 else {
                     plane.visibility = 0;
                 }
-
+                console.log(plane.position);
         })
     });
     let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-    function openModal(){
+    // Данные для точек (для примера)
+    const pointsData = [
+        {
+            text: "Текст для точки 0",
+           // photos: ["photo1.jpg", "photo2.jpg"]
+        },
+        {
+            text: "Текст для точки 1",
+          //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 2",
+          //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+          //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 4",
+           // photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Трещина на поверхности фасада,\n шириной раскрытия до 3 мм,\n длиной до 6,5 м\n",
+            photos: ["../assets/cracks/photo.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+        {
+            text: "Текст для точки 3",
+            //  photos: ["photo3.jpg", "photo4.jpg"]
+        },
+    ];
+
+    function openModal(pointIndex){
+        const point = pointsData[pointIndex];
         const modal = new GUI.Rectangle();
-        modal.width ="200px";
+        modal.width ="500px";
         modal.height = "500px";
-       // modal.cornerRadius = 20;
+        modal.cornerRadius = 20;
         modal.color ="white";
         modal.background = "black";
         modal.alpha = 0.8;
         advancedTexture.addControl(modal);
 
+        // Текст в попапе
         const textBlock = new GUI.TextBlock();
-        textBlock.text = "Something";
-        textBlock.color ="white";
+        textBlock.text = point.text;
+        textBlock.color = "white";
+        textBlock.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
+        textBlock.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM; // Выравниваем текст по нижнему краю
+        textBlock.height = "100px"; // Задаем высоту текстового блока
+        textBlock.paddingBottom = "20px"; // Добавляем отступ снизу
         modal.addControl(textBlock);
 
+        // Фотографии в попапе
+        point.photos.forEach(photo => {
+            const image = new GUI.Image("photo", photo);
+            image.stretch = GUI.Image.STRETCH_FILL;
+            image.top = "10px";
+            image.width = "300px";
+            image.height = "350px";
+            image.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+            modal.addControl(image);
+        });
         const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
         closeButton.width = "10px";
         closeButton.height ="10px";
@@ -296,11 +370,28 @@ const createScene = function(){
     }
     //-3,2,9.89
     const  points = [];
-    for (let i = 0; i<5; i++){
+    for (let i = 0; i<14; i++){
         const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
         point.visibility = 0;
-
-        point.position = new BABYLON.Vector3(-3 * i*10,2,9.89);
+        point.position = new BABYLON.Vector3(-17.4 + i*2 ,7 ,9.77 );
+        points.push(point);
+    }
+    for (let i = 0; i<14; i++){
+        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
+        point.visibility = 0;
+        point.position = new BABYLON.Vector3(-17.4 + i*2 ,4 ,9.77 );
+        points.push(point);
+    }
+    for (let i = 0; i<10; i++){
+        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
+        point.visibility = 0;
+        point.position = new BABYLON.Vector3(-17.4 + i*2 ,3 ,9.77 );
+        points.push(point);
+    }
+    for (let i = 0; i<7; i++){
+        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
+        point.visibility = 0;
+        point.position = new BABYLON.Vector3(9  ,7.3 ,10.053 +i*2);
         points.push(point);
     }
     points.forEach((point,index) => {
@@ -309,9 +400,14 @@ const createScene = function(){
         button.height = "25px";
         button.cornerRadius = 25;
         button.color = "white";
+        if (index < 6)
         button.background = "green";
+        else if (index > 6  && index < 12)
+            button.background = "yellow";
+        else
+            button.background = "red";
         button.onPointerClickObservable.add(() =>{
-            openModal();
+            openModal(index);
         });
         advancedTexture.addControl(button);
         button.linkWithMesh(point);
@@ -368,7 +464,7 @@ function loadAndShowModel(modelPath) {
         loadedModel = meshes[0];
         building = loadedModel;
         loadedModel.position = new BABYLON.Vector3(0,0.5,20);
-        loadedModel.checkCollisions = true;
+        
 
     });
 }

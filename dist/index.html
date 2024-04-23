@@ -15,18 +15,35 @@
         }
         #distance{
             position: absolute;
+                background-color: black;
+                border: 2px solid red;
+                text-align: center;
+                font-size: 16px;
             right:0;
             bottom: 1px;
       
             color: white;
         }
         #miniWindow { position: absolute; top: 10px; left: 10px; width: 200px; height: 200px; border: 1px solid black; }
+        #fps {
+                position: absolute;
+                background-color: black;
+                border: 2px solid red;
+                text-align: center;
+                font-size: 16px;
+                color: white;
+                top: 15px;
+                left: 10px;
+                width: 60px;
+                height: 20px;
+            }
     </style>
 </head>
 <body>
 <canvas id="renderCanvas">
 </canvas>
 <div id="distance"></div>
+<div id="fps">0</div>
 <script src="/dist/bundle.js">
 </script>
 <!--<script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>-->
