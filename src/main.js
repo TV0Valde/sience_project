@@ -164,28 +164,28 @@ const createScene = function(){
 
         window.addEventListener("keydown", (event) => {
             switch (event.keyCode) {
-                case 87:
+                case 38:
                     scene.inputStates.up = true;
                     break;
-                case 83:
+                case 40:
                     scene.inputStates.down = true;
                     break;
-                case 65:
+                case 37:
                     scene.inputStates.left = true;
                     break;
-                case 68:
+                case 39:
                     scene.inputStates.right = true;
                     break;
-                case 84:
+                case 104:
                     scene.inputStates.jump = true;
                     break;
-                case 71:
+                case 98:
                     scene.inputStates.crouch = true;
                     break;
-                case 81:
+                case 100:
                     scene.inputStates.rotateLeft = true;
                     break;
-                case 69:
+                case 102:
                     scene.inputStates.rotateRight = true;
                     break;
             }
@@ -193,28 +193,28 @@ const createScene = function(){
 
         window.addEventListener("keyup", (event) => {
             switch (event.keyCode) {
-                case 87:
+                case 38:
                     scene.inputStates.up = false;
                     break;
-                case 83:
+                case 40:
                     scene.inputStates.down = false;
                     break;
-                case 65:
+                case 37:
                     scene.inputStates.left = false;
                     break;
-                case 68:
+                case 39:
                     scene.inputStates.right = false;
                     break;
-                case 84:
+                case 104:
                     scene.inputStates.jump = false;
                     break;
-                case 71:
+                case 98:
                     scene.inputStates.crouch = false;
                     break;
-                case 81:
+                case 100:
                     scene.inputStates.rotateLeft = false;
                     break;
-                case 69:
+                case 102:
                     scene.inputStates.rotateRight = false;
                     break;
             }
@@ -231,7 +231,7 @@ const createScene = function(){
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
-                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
+                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 100);
                 let hit = scene.pickWithRay(pickRay);
 
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
@@ -256,123 +256,12 @@ const createScene = function(){
                 else {
                     plane.visibility = 0;
                 }
-              //  console.log(plane.position);
+                console.log(plane.position);
         })
     });
 
     let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
-// Обработчик события при нажатии клавиши мыши
-    scene.onPointerDown = function (evt, pickResult) {
-        // Проверяем, что событие произошло на меше
-        if (pickResult.hit) {
-            openModal();
-            // Выводим информацию о меше в консоль
-            console.log("Вы нажали на меш:", pickResult.pickedMesh.position);
-        }
-    };
-    function  openModal(){
-        const modal = new GUI.Rectangle();
-        modal.width ="500px";
-        modal.height = "500px";
-        //modal.cornerRadius = 20;
-        modal.color ="white";
-        modal.background = "black";
-        modal.alpha = 0.8;
-        advancedTexture.addControl(modal);
-        //Текстовое поле
-        /*  const textBlock = new GUI.InputTextArea();
-          textBlock.color = "white";
-          textBlock.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-          textBlock.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM; // Выравниваем текст по нижнему краю
-          textBlock.height = "100px"; // Задаем высоту текстового блока
-          textBlock.paddingBottom = "20px"; // Добавляем отступ снизу
-          modal.addControl(textBlock);*/
-        const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
-        closeButton.width = "20px";
-        closeButton.height ="20px";
-        closeButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        closeButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        closeButton.color = "White";
-        closeButton.background ="green";
-        closeButton.onPointerClickObservable.add(()=>{
-            modal.dispose();
-        });
-        modal.addControl(closeButton);
-// Создаем контейнер для радио кнопок и текста
-        let panel = new GUI.StackPanel();
-        panel.width = "400px";
-        panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-        panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-        advancedTexture.addControl(panel);
 
-// Создаем элементы управления для модального окна
-        let inputText = new GUI.InputText();
-        inputText.width = "200px";
-        inputText.maxWidth = 0.2;
-        inputText.height = "30px";
-        inputText.color ="white";
-        inputText.text = "Enter text here";
-
-        /*let selectColor = new GUI.SelectionPanel("colorSelect");
-        selectColor.width = "200px";
-        selectColor.height = "100px";
-        selectColor.addOption(new GUI.SelectionPanel.SelectionOption("Yellow", "#ffff00"));
-        selectColor.addOption(new GUI.SelectionPanel.SelectionOption("Green", "#00ff00"));
-        selectColor.addOption(new GUI.SelectionPanel.SelectionOption("Red", "#ff0000"));*/
-
-        let saveButton = GUI.Button.CreateSimpleButton("save", "Save");
-        saveButton.width = "100px";
-        saveButton.height = "40px";
-        saveButton.color = "white";
-        saveButton.background = "green";
-
-        panel.addControl(inputText);
-        //  panel.addControl(selectColor);
-        panel.addControl(saveButton);
-
-// Функция для открытия модального окна при клике на модель
-        let showPanel = function(mesh, evt) {
-            panel.isVisible = true;
-            advancedTexture.addControl(panel);
-        };
-
-// Функция для создания графической кнопки и сохранения данных
-        let createButton = function(position, text, color) {
-            let dynamicTexture = new GUI.AdvancedDynamicTexture.CreateForMesh(new BABYLON.GUI.AdvancedDynamicTexture.CreateForMeshParameters(mesh));
-            let button = GUI.Button.CreateSimpleButton("but", text);
-            button.width = "100px";
-            button.height = "40px";
-            button.color = "white";
-            button.background = color;
-            button.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
-            button.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
-            dynamicTexture.addControl(button);
-        };
-
-
-// Привязываем функцию showPanel к клику на модель
-        // model.actionManager = new BABYLON.ActionManager(scene);
-        // model.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, showPanel));
-
-// Обработчик события для кнопки Save
-        /* saveButton.onPointerUpObservable.add(function() {
-             let text = inputText.text;
-            // let color = selectColor.selectedOption.value;
-             let pickInfo = scene.pick(scene.pointerX, scene.pointerY);
-             if (pickInfo.hit) {
-                 createButton(pickInfo.pickedPoint, text, color);
-             }
-             panel.isVisible = false;
-         });*/
-
-        /*   let textblock2 = new GUI.TextBlock();
-           textblock2.height ="20px";
-           textblock2.text = "Жёлтый";
-           modal.addControl(textblock);
-           modal.addControl(radioButton2);*/
-
-    }
-    /*
     // Данные для точек (для примера)
     const pointsData = [
         {
@@ -465,40 +354,18 @@ const createScene = function(){
             modal.addControl(image);
         });
         const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
-        closeButton.width = "10px";
-        closeButton.height ="10px";
+        closeButton.width = "20px";
+        closeButton.height ="20px";
         closeButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
         closeButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        closeButton.color = "White";
-        closeButton.background ="green";
-        closeButton.onPointerClickObservable.add(()=>{
-            modal.dispose();
-        });
-        modal.addControl(closeButton);
+        closeButton.color = "white";
+        closeButton.background = "green";
 
-        modal.linkOffsetX = 0;
-        modal.linkOffsetY = 0;
-        modal.linkOffsetZ = -200;
-    }
-    //-3,2,9.89
-    const  points = [];
-    for (let i = 0; i<14; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(-17.4 + i*2 ,7 ,9.77 );
-        points.push(point);
-    }
-    for (let i = 0; i<14; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(-17.4 + i*2 ,4 ,9.77 );
-        points.push(point);
-    }
-    for (let i = 0; i<10; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(-17.4 + i*2 ,3 ,9.77 );
-        points.push(point);
+        closeButton.onPointerUpObservable.add(function() {
+            advancedTexture.removeControl(modalContainer);
+        });
+
+        modalContainer.addControl(closeButton);
     }
     for (let i = 0; i<7; i++){
         const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
@@ -525,7 +392,7 @@ const createScene = function(){
         button.linkWithMesh(point);
         button.linkOffsetY = -50;
     });
-*/
+
 
     return scene;
 }
