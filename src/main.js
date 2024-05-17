@@ -164,28 +164,28 @@ const createScene = function(){
 
         window.addEventListener("keydown", (event) => {
             switch (event.keyCode) {
-                case 87:
+                case 38:
                     scene.inputStates.up = true;
                     break;
-                case 83:
+                case 40:
                     scene.inputStates.down = true;
                     break;
-                case 65:
+                case 37:
                     scene.inputStates.left = true;
                     break;
-                case 68:
+                case 39:
                     scene.inputStates.right = true;
                     break;
-                case 84:
+                case 104:
                     scene.inputStates.jump = true;
                     break;
-                case 71:
+                case 98:
                     scene.inputStates.crouch = true;
                     break;
-                case 81:
+                case 100:
                     scene.inputStates.rotateLeft = true;
                     break;
-                case 69:
+                case 102:
                     scene.inputStates.rotateRight = true;
                     break;
             }
@@ -193,28 +193,28 @@ const createScene = function(){
 
         window.addEventListener("keyup", (event) => {
             switch (event.keyCode) {
-                case 87:
+                case 38:
                     scene.inputStates.up = false;
                     break;
-                case 83:
+                case 40:
                     scene.inputStates.down = false;
                     break;
-                case 65:
+                case 37:
                     scene.inputStates.left = false;
                     break;
-                case 68:
+                case 39:
                     scene.inputStates.right = false;
                     break;
-                case 84:
+                case 104:
                     scene.inputStates.jump = false;
                     break;
-                case 71:
+                case 98:
                     scene.inputStates.crouch = false;
                     break;
-                case 81:
+                case 100:
                     scene.inputStates.rotateLeft = false;
                     break;
-                case 69:
+                case 102:
                     scene.inputStates.rotateRight = false;
                     break;
             }
@@ -231,7 +231,7 @@ const createScene = function(){
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
-                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
+                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 100);
                 let hit = scene.pickWithRay(pickRay);
 
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
@@ -256,163 +256,153 @@ const createScene = function(){
                 else {
                     plane.visibility = 0;
                 }
-                console.log(plane.position);
+               // console.log(plane.position);
         })
     });
     let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
-    // Данные для точек (для примера)
-    const pointsData = [
-        {
-            text: "Текст для точки 0",
-           // photos: ["photo1.jpg", "photo2.jpg"]
-        },
-        {
-            text: "Текст для точки 1",
-          //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 2",
-          //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-          //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 4",
-           // photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Трещина на поверхности фасада,\n шириной раскрытия до 3 мм,\n длиной до 6,5 м\n",
-            photos: ["../assets/cracks/photo.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-        {
-            text: "Текст для точки 3",
-            //  photos: ["photo3.jpg", "photo4.jpg"]
-        },
-    ];
+// Объект для хранения информации о каждой точке
+    let pointData = {};
 
-    function openModal(pointIndex){
-        const point = pointsData[pointIndex];
-        const modal = new GUI.Rectangle();
-        modal.width ="500px";
-        modal.height = "500px";
-        modal.cornerRadius = 20;
-        modal.color ="white";
-        modal.background = "black";
-        modal.alpha = 0.8;
-        advancedTexture.addControl(modal);
+    function createButtonAtPointer(pickResult) {
+        if (pickResult.hit) {
+            let button = GUI.Button.CreateSimpleButton("button", "");
+            button.width = "20px";
+            button.height = "20px";
+            button.color = "white";
+            button.background = "green";
+            button.cornerRadius = 25;
+            button.onPointerUpObservable.add(function() {
+                openModal(button, pickResult.pickedPoint);
+            });
+            advancedTexture.addControl(button);
+            // Привязываем кнопку к мешу
+            button.linkWithMesh(pickResult.pickedMesh);
+            // Устанавливаем смещение кнопки относительно меша
+            let buttonPosition = pickResult.pickedPoint;
+            button.position = buttonPosition;
+        }
+    }
 
-        // Текст в попапе
-        const textBlock = new GUI.TextBlock();
-        textBlock.text = point.text;
-        textBlock.color = "white";
-        textBlock.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_LEFT;
-        textBlock.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM; // Выравниваем текст по нижнему краю
-        textBlock.height = "100px"; // Задаем высоту текстового блока
-        textBlock.paddingBottom = "20px"; // Добавляем отступ снизу
-        modal.addControl(textBlock);
+    function openModal(button, pointPosition) {
+        let modalContainer = new GUI.Rectangle();
+        modalContainer.width = "500px";
+        modalContainer.height = "500px";
+        modalContainer.color = "white";
+        modalContainer.background = "black";
+        modalContainer.alpha = 0.8;
+        advancedTexture.addControl(modalContainer);
 
-        // Фотографии в попапе
-        point.photos.forEach(photo => {
-            const image = new GUI.Image("photo", photo);
-            image.stretch = GUI.Image.STRETCH_FILL;
-            image.top = "10px";
-            image.width = "300px";
-            image.height = "350px";
-            image.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-            modal.addControl(image);
+        let messageText = new GUI.TextBlock();
+        messageText.text = "Введите информацию о координате:";
+        messageText.color = "white";
+        messageText.fontSize = 18;
+        messageText.resizeToFit = true;
+        messageText.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        modalContainer.addControl(messageText);
+
+        let TextArea = new GUI.InputTextArea();
+        TextArea.color = "white";
+        TextArea.fontSize = 18;
+        TextArea.width = "200px";
+        TextArea.height = "200px";
+        TextArea.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        TextArea.paddingBottom ="10px";
+        modalContainer.addControl(TextArea);
+
+        let radioGroup = new GUI.StackPanel();
+        radioGroup.isVertical = true;
+        radioGroup.paddingTop = "10px";
+        radioGroup.paddingLeft = "20px";
+
+        let radioRed = new GUI.RadioButton();
+        radioRed.width = "20px";
+        radioRed.height = "20px";
+        radioRed.color = "white";
+        radioRed.background = "red";
+        radioRed.onIsCheckedChangedObservable.add(function(state) {
+            if (state) {
+                button.background = "red";
+            }
         });
+
+        let radioGreen = new GUI.RadioButton();
+        radioGreen.width = "20px";
+        radioGreen.height = "20px";
+        radioGreen.color = "white";
+        radioGreen.background = "green";
+        radioGreen.onIsCheckedChangedObservable.add(function(state) {
+            if (state) {
+                button.background = "green";
+            }
+        });
+
+        let radioYellow = new GUI.RadioButton();
+        radioYellow.width = "20px";
+        radioYellow.height = "20px";
+        radioYellow.color = "white";
+        radioYellow.background = "yellow";
+        radioYellow.onIsCheckedChangedObservable.add(function(state) {
+            if (state) {
+                button.background = "yellow";
+            }
+        });
+
+        radioGroup.addControl(radioRed);
+        radioGroup.addControl(radioGreen);
+        radioGroup.addControl(radioYellow);
+
+        modalContainer.addControl(radioGroup);
+
+        const saveButton = GUI.Button.CreateSimpleButton("savebutton","Сохранить");
+        saveButton.width = "100px";
+        saveButton.height = "40px";
+        saveButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        saveButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
+        saveButton.color = "white";
+        saveButton.background = "gray";
+
+        saveButton.onPointerUpObservable.add(function() {
+            // Сохраняем информацию о точке
+            let color;
+            if (radioRed.isChecked) {
+                color = "red";
+            } else if (radioGreen.isChecked) {
+                color = "green";
+            } else if (radioYellow.isChecked) {
+                color = "yellow";
+            }
+            pointData[pointPosition.toString()] = {
+                color: color,
+                text: TextArea.text
+            };
+            // Закрываем модальное окно
+            advancedTexture.removeControl(modalContainer);
+        });
+
+        modalContainer.addControl(saveButton);
+
         const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
-        closeButton.width = "10px";
-        closeButton.height ="10px";
+        closeButton.width = "20px";
+        closeButton.height ="20px";
         closeButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
         closeButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        closeButton.color = "White";
-        closeButton.background ="green";
-        closeButton.onPointerClickObservable.add(()=>{
-            modal.dispose();
-        });
-        modal.addControl(closeButton);
+        closeButton.color = "white";
+        closeButton.background = "green";
 
-        modal.linkOffsetX = 0;
-        modal.linkOffsetY = 0;
-        modal.linkOffsetZ = -200;
-    }
-    //-3,2,9.89
-    const  points = [];
-    for (let i = 0; i<14; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(-17.4 + i*2 ,7 ,9.77 );
-        points.push(point);
-    }
-    for (let i = 0; i<14; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(-17.4 + i*2 ,4 ,9.77 );
-        points.push(point);
-    }
-    for (let i = 0; i<10; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(-17.4 + i*2 ,3 ,9.77 );
-        points.push(point);
-    }
-    for (let i = 0; i<7; i++){
-        const point = BABYLON.Mesh.CreateSphere("point" +i,16,0.6,scene);
-        point.visibility = 0;
-        point.position = new BABYLON.Vector3(9  ,7.3 ,10.053 +i*2);
-        points.push(point);
-    }
-    points.forEach((point,index) => {
-        const button = GUI.Button.CreateSimpleButton("button"+ index,"");
-        button.width = "25px";
-        button.height = "25px";
-        button.cornerRadius = 25;
-        button.color = "white";
-        if (index < 6)
-        button.background = "green";
-        else if (index > 6  && index < 12)
-            button.background = "yellow";
-        else
-            button.background = "red";
-        button.onPointerClickObservable.add(() =>{
-            openModal(index);
+        closeButton.onPointerUpObservable.add(function() {
+            advancedTexture.removeControl(modalContainer);
         });
-        advancedTexture.addControl(button);
-        button.linkWithMesh(point);
-        button.linkOffsetY = -50;
-    });
+
+        modalContainer.addControl(closeButton);
+    }
+
+    scene.onPointerDown = function (evt, pickResult) {
+        createButtonAtPointer(pickResult);
+    };
+
+
+
 
 
     return scene;
