@@ -256,11 +256,123 @@ const createScene = function(){
                 else {
                     plane.visibility = 0;
                 }
-                console.log(plane.position);
+              //  console.log(plane.position);
         })
     });
-    let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
 
+    let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+// Обработчик события при нажатии клавиши мыши
+    scene.onPointerDown = function (evt, pickResult) {
+        // Проверяем, что событие произошло на меше
+        if (pickResult.hit) {
+            openModal();
+            // Выводим информацию о меше в консоль
+            console.log("Вы нажали на меш:", pickResult.pickedMesh.position);
+        }
+    };
+    function  openModal(){
+        const modal = new GUI.Rectangle();
+        modal.width ="500px";
+        modal.height = "500px";
+        //modal.cornerRadius = 20;
+        modal.color ="white";
+        modal.background = "black";
+        modal.alpha = 0.8;
+        advancedTexture.addControl(modal);
+        //Текстовое поле
+        /*  const textBlock = new GUI.InputTextArea();
+          textBlock.color = "white";
+          textBlock.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+          textBlock.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM; // Выравниваем текст по нижнему краю
+          textBlock.height = "100px"; // Задаем высоту текстового блока
+          textBlock.paddingBottom = "20px"; // Добавляем отступ снизу
+          modal.addControl(textBlock);*/
+        const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
+        closeButton.width = "20px";
+        closeButton.height ="20px";
+        closeButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
+        closeButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
+        closeButton.color = "White";
+        closeButton.background ="green";
+        closeButton.onPointerClickObservable.add(()=>{
+            modal.dispose();
+        });
+        modal.addControl(closeButton);
+// Создаем контейнер для радио кнопок и текста
+        let panel = new GUI.StackPanel();
+        panel.width = "400px";
+        panel.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+        panel.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+        advancedTexture.addControl(panel);
+
+// Создаем элементы управления для модального окна
+        let inputText = new GUI.InputText();
+        inputText.width = "200px";
+        inputText.maxWidth = 0.2;
+        inputText.height = "30px";
+        inputText.color ="white";
+        inputText.text = "Enter text here";
+
+        /*let selectColor = new GUI.SelectionPanel("colorSelect");
+        selectColor.width = "200px";
+        selectColor.height = "100px";
+        selectColor.addOption(new GUI.SelectionPanel.SelectionOption("Yellow", "#ffff00"));
+        selectColor.addOption(new GUI.SelectionPanel.SelectionOption("Green", "#00ff00"));
+        selectColor.addOption(new GUI.SelectionPanel.SelectionOption("Red", "#ff0000"));*/
+
+        let saveButton = GUI.Button.CreateSimpleButton("save", "Save");
+        saveButton.width = "100px";
+        saveButton.height = "40px";
+        saveButton.color = "white";
+        saveButton.background = "green";
+
+        panel.addControl(inputText);
+        //  panel.addControl(selectColor);
+        panel.addControl(saveButton);
+
+// Функция для открытия модального окна при клике на модель
+        let showPanel = function(mesh, evt) {
+            panel.isVisible = true;
+            advancedTexture.addControl(panel);
+        };
+
+// Функция для создания графической кнопки и сохранения данных
+        let createButton = function(position, text, color) {
+            let dynamicTexture = new GUI.AdvancedDynamicTexture.CreateForMesh(new BABYLON.GUI.AdvancedDynamicTexture.CreateForMeshParameters(mesh));
+            let button = GUI.Button.CreateSimpleButton("but", text);
+            button.width = "100px";
+            button.height = "40px";
+            button.color = "white";
+            button.background = color;
+            button.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_CENTER;
+            button.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_CENTER;
+            dynamicTexture.addControl(button);
+        };
+
+
+// Привязываем функцию showPanel к клику на модель
+        // model.actionManager = new BABYLON.ActionManager(scene);
+        // model.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, showPanel));
+
+// Обработчик события для кнопки Save
+        /* saveButton.onPointerUpObservable.add(function() {
+             let text = inputText.text;
+            // let color = selectColor.selectedOption.value;
+             let pickInfo = scene.pick(scene.pointerX, scene.pointerY);
+             if (pickInfo.hit) {
+                 createButton(pickInfo.pickedPoint, text, color);
+             }
+             panel.isVisible = false;
+         });*/
+
+        /*   let textblock2 = new GUI.TextBlock();
+           textblock2.height ="20px";
+           textblock2.text = "Жёлтый";
+           modal.addControl(textblock);
+           modal.addControl(radioButton2);*/
+
+    }
+    /*
     // Данные для точек (для примера)
     const pointsData = [
         {
@@ -413,7 +525,7 @@ const createScene = function(){
         button.linkWithMesh(point);
         button.linkOffsetY = -50;
     });
-
+*/
 
     return scene;
 }
