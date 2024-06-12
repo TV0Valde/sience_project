@@ -37,15 +37,78 @@
                 width: 60px;
                 height: 20px;
             }
+            .modal {
+  display: none;
+  position: fixed;
+  z-index: 1;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+    margin-top: 100;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.modal-content {
+  background-color: #fefefe;
+  margin: 15% auto;
+  padding: 20px;
+  border: 1px solid #888;
+  width: 25%;
+  height: 50%;
+}
+
+.close {
+  color: #aaa;
+  float: right;
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.close:hover,
+.close:focus {
+  color: black;
+  text-decoration: none;
+  cursor: pointer;
+}
     </style>
 </head>
 <body>
 <canvas id="renderCanvas">
 </canvas>
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <label for="textarea">Введите информацию о точке:</label>
+        <textarea id="textarea" rows="4"></textarea>
+        <label for="select">Выберите изображение:</label>
+        <select id="select">
+            <option value="option1">Картинка 1</option>
+            <option value="option2">Картинка 2</option>
+            <option value="option3">Картинка 3</option>
+        </select>
+        <label>Выберите состояние:</label>
+        <div>
+            <input type="radio" id="radio1" name="radios" value="radio1">
+            <label for="radio1">Нет повреждений</label>
+        </div>
+        <div>
+            <input type="radio" id="radio2" name="radios" value="radio2">
+            <label for="radio2">Незначительные повреждения</label>
+        </div>
+        <div>
+            <input type="radio" id="radio3" name="radios" value="radio3">
+            <label for="radio3">Аварийные повреждения</label>
+        </div>
+        <button id="saveBtn">Сохранить</button>
+        <button id="cancelBtn">Осмотр</button>
+    </div>
+</div>
 <div id="distance"></div>
 <div id="fps">0</div>
 <script src="/dist/bundle.js">
 </script>
-<!--<script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>-->
 </body>
 </html>
