@@ -22,15 +22,14 @@ const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, st
 const createScene = function(){
     const scene = new BABYLON.Scene(engine);
 //Камера
-   // const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
-    camera.radius = 5; // Радиус области видимости
-    camera.heightOffset = 3; // Высота области видимости
-    camera.rotationOffset = 180; // Поворот области видимости (в градусах)
+    camera.radius = 5; 
+    camera.heightOffset = 3; 
+    camera.rotationOffset = 180; 
 
-    //создание плоскости(области видимости)
+   //Плоскость
     let planeWidth = 0.1;
     let planeHeight = 0.1;
     const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
@@ -40,12 +39,12 @@ const createScene = function(){
     plane.material = greenMaterial;
     plane.material.alpha = 0.5;
 
-
     //Свет
     const  light = new BABYLON.HemisphericLight("light",new BABYLON.Vector3(0,1,0),scene);
     light.intensity = 0.5;
     light.groundColor = new BABYLON.Color3(0,0,1);
     scene.clearColor = BABYLON.Color3.Black();
+
     // Скайбоксы
     const  skyboxMaterial = new BABYLON.StandardMaterial('skyboxMaterial',scene);
     skyboxMaterial.backFaceCulling = false;
@@ -58,39 +57,13 @@ const createScene = function(){
     },scene)
     skybox.infiniteDistance = true;
     skybox.material = skyboxMaterial;
-//Земля
+
+    //Земля
     let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 300, height: 300 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/grass.jpg", scene);
     ground.material = groundMaterial;
     ground.position = new BABYLON.Vector3(0,0,0);
-
-    //мини окно
-    let miniMap = new BABYLON.FollowCamera("minimap", new BABYLON.Vector3(0,0,0),scene,drone);
-    miniMap.layerMask = 2;
-    
-    miniMap.attachControl(true);
-    miniMap.upperBetaLimit = Math.PI / 2.2;
-    miniMap.radius = 5; // Радиус области видимости
-    miniMap.heightOffset = 10; // Высота области видимости
-    miniMap.rotationOffset = 180; // Поворот области видимости (в градусах)
-    scene.activeCameras.push(camera);
-    let rt2 = new BABYLON.RenderTargetTexture("depth", 1024, scene, true, true);
-    scene.customRenderTargets.push(rt2);
-    rt2.activeCamera = miniMap;
-    rt2.renderList = building;
-    let miniMapMaterial = new BABYLON.StandardMaterial("texturePlane", scene);
-    miniMapMaterial.diffuseColor = new BABYLON.Color3(1,1,1);
-    miniMapMaterial.diffuseTexture = rt2;
-    miniMapMaterial.specularColor = BABYLON.Color3.Black();
-    miniMapMaterial.diffuseTexture.level = 1.2; // intensity
-    miniMapMaterial.emissiveColor = new BABYLON.Color3(1,1,1); // backlight
-    let miniMapPlane = BABYLON.Mesh.CreatePlane("plane", 4, scene);
-    //  miniMapPlane.position = new BABYLON.Vector3(0, 0, 20)
-    miniMapPlane.position = new BABYLON.Vector3(0, -canvas.height/150, 20)
-    miniMapPlane.material = miniMapMaterial;
-    miniMapPlane.parent = camera;
-    miniMapPlane.layerMask = 1;
 
 
 //Модуль БПЛА
@@ -105,8 +78,7 @@ const createScene = function(){
         drone.scaling.x = 0.1;
         drone.scaling.y = 0.1;
         camera.parent = drone;
-       miniMap.parent =camera;
-        //задание скорости
+    
         let speed = 0.1;
         let rotationSpeed = 0.02;
         let direction = new BABYLON.Vector3(0, 0, 1);
@@ -120,15 +92,12 @@ const createScene = function(){
             }
             if (scene.inputStates.rotateRight) {
                 drone.rotation.y += rotationSpeed;
-
                 direction = BABYLON.Vector3.TransformCoordinates(direction, BABYLON.Matrix.RotationY(rotationSpeed));
             }
-
             // Движение модели
             let forward = direction.clone();
             forward.y = 0;
             forward = forward.normalize();
-
             let right = new BABYLON.Vector3(-forward.z, 0, forward.x);
 
             if (scene.inputStates.up) {
@@ -221,26 +190,20 @@ const createScene = function(){
         });
 
 
-
-
         let point =  drone.position.clone();
 //обработка приближения/отдаления
         scene.registerBeforeRender(function (){
-            
+
             divFps.innerHTML = engine.getFps().toFixed() + " fps";
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
                 let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
                 let hit = scene.pickWithRay(pickRay);
-                let name = '';
+
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
                      distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
-                    plane.scaling.y = 2* distance * Math.tan(FOV/2);
-                    if (distance < 9.5)                
-                        miniMap.position = new BABYLON.Vector3(0,0,0);           
-                    else 
-                        miniMap.position = new BABYLON.Vector3(0,0,98);     
+                    plane.scaling.y = 2* distance * Math.tan(FOV/2); 
                      if (format ===1){
                          plane.scaling.x = plane.scaling.y;   
                      }
@@ -251,219 +214,126 @@ const createScene = function(){
                     plane.position = hit.pickedPoint;
                     plane.rotation.y = drone.rotation.y;
                     GetDistance(input_distance,distance);
-                    name = hit.pickedMesh.name;
-                    //console.log(hit.pickedMesh.name);
-                    if(name.substr(0,3)=='Ifc')
-                        console.log('Hi'); 
+                   
                 }
                 else {
                     plane.visibility = 0;
                 }
-               // console.log(plane.position);
+               
         })
     });
-    let advancedTexture = GUI.AdvancedDynamicTexture.CreateFullscreenUI("UI");
+            const points = [];
 
-// Объект для хранения информации о каждой точке
-  
-    function createButtonAtPointer(pickResult) {
-        if (pickResult.hit) {
-            let button = GUI.Button.CreateSimpleButton("button", "");
-            button.width = "20px";
-            button.height = "20px";
-            button.color = "white";
-            button.background = "green";
-            button.cornerRadius = 25;
-            button.onPointerUpObservable.add(function() {
-                openModal(button, pickResult.pickedPoint);
-            });
-
-            advancedTexture.addControl(button);
-            // Привязываем кнопку к мешу
-            button.linkWithMesh(pickResult.pickedMesh);
-            // Устанавливаем смещение кнопки относительно меша
-            let buttonPosition = pickResult.pickedPoint;
-            button.position = buttonPosition;
-         
-           
-        }
-    }
-  
-    function openModal(button, pointPosition) {
-        let modalContainer = new GUI.Rectangle();
-        modalContainer.width = "500px";
-        modalContainer.height = "500px";
-        modalContainer.color = "white";
-        modalContainer.background = "black";
-        modalContainer.alpha = 0.8;
-        advancedTexture.addControl(modalContainer);
-
-        let messageText = new GUI.TextBlock();
-        messageText.text = "Введите информацию о координате:";
-        messageText.color = "white";
-        messageText.fontSize = 18;
-        messageText.resizeToFit = true;
-        messageText.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        modalContainer.addControl(messageText);
-
-        let TextArea = new GUI.InputTextArea();
-        TextArea.color = "white";
-        TextArea.fontSize = 18;
-        TextArea.width = "200px";
-        TextArea.height = "200px";
-        TextArea.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-        TextArea.paddingBottom ="10px";
-        modalContainer.addControl(TextArea);
-
-        let radioGroup = new GUI.StackPanel();
-        radioGroup.isVertical = true;
-        radioGroup.paddingTop = "10px";
-        radioGroup.paddingLeft = "20px";
-
-        let radioRed = new GUI.RadioButton();
-        radioRed.width = "20px";
-        radioRed.height = "20px";
-        radioRed.color = "white";
-        radioRed.background = "red";
-        radioRed.onIsCheckedChangedObservable.add(function(state) {
-            if (state) {
-                button.background = "red";
-            }
-        });
-
-        let radioGreen = new GUI.RadioButton();
-        radioGreen.width = "20px";
-        radioGreen.height = "20px";
-        radioGreen.color = "white";
-        radioGreen.background = "green";
-        radioGreen.onIsCheckedChangedObservable.add(function(state) {
-            if (state) {
-                button.background = "green";
-            }
-        });
-
-        let radioYellow = new GUI.RadioButton();
-        radioYellow.width = "20px";
-        radioYellow.height = "20px";
-        radioYellow.color = "white";
-        radioYellow.background = "yellow";
-        radioYellow.onIsCheckedChangedObservable.add(function(state) {
-            if (state) {
-                button.background = "yellow";
-            }
-        });
-
-        radioGroup.addControl(radioRed);
-        radioGroup.addControl(radioGreen);
-        radioGroup.addControl(radioYellow);
-
-        modalContainer.addControl(radioGroup);
-
-        const saveButton = GUI.Button.CreateSimpleButton("savebutton","Сохранить");
-        saveButton.width = "100px";
-        saveButton.height = "40px";
-        saveButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        saveButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_BOTTOM;
-        saveButton.color = "white";
-        saveButton.background = "gray";
-
-        saveButton.onPointerUpObservable.add(function() {
-            // Сохраняем информацию о точке
-            let color;
-            if (radioRed.isChecked) {
-                color = "red";
-            } else if (radioGreen.isChecked) {
-                color = "green";
-            } else if (radioYellow.isChecked) {
-                color = "yellow";
-            }
-            pointData[pointPosition.toString()] = {
-                color: color,
-                text: TextArea.text
+            // Обработчик нажатия на модель
+            const createPoint = (position) => {
+                const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 1); 
+            
+                if (!existingPoint) {
+                    const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+                    point.position = position;
+                    point.material = groundMaterial;
+                    
+                    openModal((photoData, info) => {
+                        points.push({
+                            position: point.position.asArray(),
+                            photoData: photoData,
+                            info: info,
+                        });
+                        localStorage.setItem("points", JSON.stringify(points));
+                    });
+                } else {
+                    openModalForExisting(existingPoint); 
+                }
             };
-            // Закрываем модальное окно
-            advancedTexture.removeControl(modalContainer);
-        });
-
-        modalContainer.addControl(saveButton);
-
-        const closeButton = GUI.Button.CreateSimpleButton("closebutton","x");
-        closeButton.width = "20px";
-        closeButton.height ="20px";
-        closeButton.horizontalAlignment = GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT;
-        closeButton.verticalAlignment = GUI.Control.VERTICAL_ALIGNMENT_TOP;
-        closeButton.color = "white";
-        closeButton.background = "green";
-
-        closeButton.onPointerUpObservable.add(function() {
-            advancedTexture.removeControl(modalContainer);
-        });
-
-        modalContainer.addControl(closeButton);
-    }
-
-    scene.onPointerDown = function (evt, pickResult) {
-        createButtonAtPointer(pickResult);
-    };
-
-    const points = [];
-    const points2 = [];
-    const points3 = [];
-    
-    // Обработчик нажатия на модель
-    const createPoint = (position) => {
-        const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 0.5); 
-      
-        if (!existingPoint) {
-          const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.3 }, scene);
-          point.position = position;
-          point.material = groundMaterial;
-          points.push({
-            position: point.position.asArray(),
-          });
-      
-          
-          localStorage.setItem("points", JSON.stringify(points));
-      
-          openModal(); // Function to open modal
-        } else {
-          openModal(); // Open modal on repeated click
-        }
-      };
-      
-      const onPickingGround = (e) => {
-        const pickResult = scene.pick(e.offsetX, e.offsetY);
-        if (pickResult.hit) {
-          createPoint(pickResult.pickedPoint);
-        }
-      };
-    
-    {
-    const pointsData = JSON.parse(localStorage.getItem("points") || "[]");
-    pointsData.forEach((pointData) => {
-      const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.3 }, scene);
-      point.position = BABYLON.Vector3.FromArray(pointData.position);
-    });
-}
-    scene.onPointerDown = onPickingGround;
-   
-    function openModal(){
-    let modal = document.getElementById("myModal");
-    modal.style.display = 'flex';
- }
- const modal = document.getElementById('myModal');
-const closeModalBtn = document.querySelector('.close');
-
-if (modal && closeModalBtn) {
- closeModalBtn.addEventListener('click', () => {
-     modal.style.display = 'none';
- });
-}
- function closeModal(){
-     let modal = document.getElementById("openModal");
-     modal.style.display = 'none';
-  }
+            
+            const onPickingGround = (e) => {
+                const pickResult = scene.pick(e.offsetX, e.offsetY);
+                if (pickResult.hit) {
+                    createPoint(pickResult.pickedPoint);
+                }
+            };
+            
+            // Восстановление точек из localStorage при загрузке страницы
+            const pointsData = JSON.parse(localStorage.getItem("points") || "[]");
+            pointsData.forEach((pointData) => {
+                const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+                point.position = BABYLON.Vector3.FromArray(pointData.position);
+                point.material = groundMaterial;
+                // Восстановление фото и информации по мере необходимости
+                points.push(pointData);
+            });
+            
+            // Подписка на событие нажатия
+            scene.onPointerDown = onPickingGround;
+            
+            function openModal(callback) {
+                const modal = document.getElementById("myModal");
+                const photoInput = document.getElementById("photoInput");
+                const infoInput = document.getElementById("infoInput");
+                const saveBtn = document.getElementById("saveBtn");
+            
+                modal.style.display = 'flex';
+            
+                saveBtn.onclick = () => {
+                    let file = photoInput.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const photoData = reader.result;
+                            const info = infoInput.value;
+                            callback(photoData, info);
+                            modal.style.display = 'none';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        const photoData = null;
+                        const info = infoInput.value;
+                        callback(photoData, info);
+                        modal.style.display = 'none';
+                    }
+                };
+            }
+            
+            function openModalForExisting(existingPoint) {
+                const modal = document.getElementById("myModal");
+                const photoDisplay = document.getElementById("photoDisplay");
+                const infoDisplay = document.getElementById("infoDisplay");
+                const insert = document.getElementById("insert");
+                if (existingPoint.photoData) {
+                    photoDisplay.src = existingPoint.photoData;
+                    photoDisplay.style.display = 'block';
+                    photoDisplay.style.width ='200px';
+                    photoDisplay.style.height ='200px';
+                   // insert.style.display = 'none';
+                } else {
+                    photoDisplay.style.display = 'none';
+                }
+                
+                infoDisplay.textContent = existingPoint.info;
+                infoDisplay.style.display = 'block';
+            
+                modal.style.display = 'flex';
+            }
+            
+            const modal = document.getElementById('myModal');
+            const closeModalBtn = document.querySelector('.close');
+            
+            if (modal && closeModalBtn) {
+                closeModalBtn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+            }
+            
+            
+            
+            
  
+
+    
+
+
+
+
 
     return scene;
 }
