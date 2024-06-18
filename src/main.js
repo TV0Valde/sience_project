@@ -22,15 +22,14 @@ const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, st
 const createScene = function(){
     const scene = new BABYLON.Scene(engine);
 //Камера
-   // const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
-    camera.radius = 5; // Радиус области видимости
-    camera.heightOffset = 3; // Высота области видимости
-    camera.rotationOffset = 180; // Поворот области видимости (в градусах)
+    camera.radius = 5; 
+    camera.heightOffset = 3; 
+    camera.rotationOffset = 180; 
 
-    //создание плоскости(области видимости)
+   //Плоскость
     let planeWidth = 0.1;
     let planeHeight = 0.1;
     const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
@@ -40,12 +39,12 @@ const createScene = function(){
     plane.material = greenMaterial;
     plane.material.alpha = 0.5;
 
-
     //Свет
     const  light = new BABYLON.HemisphericLight("light",new BABYLON.Vector3(0,1,0),scene);
     light.intensity = 0.5;
     light.groundColor = new BABYLON.Color3(0,0,1);
     scene.clearColor = BABYLON.Color3.Black();
+
     // Скайбоксы
     const  skyboxMaterial = new BABYLON.StandardMaterial('skyboxMaterial',scene);
     skyboxMaterial.backFaceCulling = false;
@@ -58,40 +57,14 @@ const createScene = function(){
     },scene)
     skybox.infiniteDistance = true;
     skybox.material = skyboxMaterial;
-//Земля
+
+    //Земля
     let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 300, height: 300 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
     groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/grass.jpg", scene);
     ground.material = groundMaterial;
     ground.position = new BABYLON.Vector3(0,0,0);
 
-    //мини окно
-  /*  let miniMap = new BABYLON.FollowCamera("minimap", new BABYLON.Vector3(0,0,98),scene,drone);
-    miniMap.layerMask = 2;
-    
-    miniMap.attachControl(true);
-    miniMap.upperBetaLimit = Math.PI / 2.2;
-    miniMap.radius = 5; // Радиус области видимости
-    miniMap.heightOffset = 10; // Высота области видимости
-    miniMap.rotationOffset = 180; // Поворот области видимости (в градусах)
-    scene.activeCameras.push(camera);
-    let rt2 = new BABYLON.RenderTargetTexture("depth", 1024, scene, true, true);
-    scene.customRenderTargets.push(rt2);
-    rt2.activeCamera = miniMap;
-    rt2.renderList = building;
-    let miniMapMaterial = new BABYLON.StandardMaterial("texturePlane", scene);
-    miniMapMaterial.diffuseColor = new BABYLON.Color3(1,1,1);
-    miniMapMaterial.diffuseTexture = rt2;
-    miniMapMaterial.specularColor = BABYLON.Color3.Black();
-    miniMapMaterial.diffuseTexture.level = 1.2; // intensity
-    miniMapMaterial.emissiveColor = new BABYLON.Color3(1,1,1); // backlight
-    let miniMapPlane = BABYLON.Mesh.CreatePlane("plane", 4, scene);
-    //  miniMapPlane.position = new BABYLON.Vector3(0, 0, 20)
-    miniMapPlane.position = new BABYLON.Vector3(0, -canvas.height/100, 20)
-    miniMapPlane.material = miniMapMaterial;
-    miniMapPlane.parent = camera;
-    miniMapPlane.layerMask = 1;
-*/
 
 //Модуль БПЛА
         const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
@@ -105,8 +78,7 @@ const createScene = function(){
         drone.scaling.x = 0.1;
         drone.scaling.y = 0.1;
         camera.parent = drone;
-      // miniMap.parent =camera;
-        //задание скорости
+    
         let speed = 0.1;
         let rotationSpeed = 0.02;
         let direction = new BABYLON.Vector3(0, 0, 1);
@@ -120,15 +92,12 @@ const createScene = function(){
             }
             if (scene.inputStates.rotateRight) {
                 drone.rotation.y += rotationSpeed;
-
                 direction = BABYLON.Vector3.TransformCoordinates(direction, BABYLON.Matrix.RotationY(rotationSpeed));
             }
-
             // Движение модели
             let forward = direction.clone();
             forward.y = 0;
             forward = forward.normalize();
-
             let right = new BABYLON.Vector3(-forward.z, 0, forward.x);
 
             if (scene.inputStates.up) {
@@ -221,8 +190,6 @@ const createScene = function(){
         });
 
 
-
-
         let point =  drone.position.clone();
 //обработка приближения/отдаления
         scene.registerBeforeRender(function (){
@@ -252,65 +219,114 @@ const createScene = function(){
                 else {
                     plane.visibility = 0;
                 }
-               // console.log(plane.position);
+               
         })
     });
-    const points = [];
+            const points = [];
 
-    // Обработчик нажатия на модель
-    const createPoint = (position) => {
-        const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 0.1); 
-      
-        if (!existingPoint) {
-          const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
-          point.position = position;
-          point.material = groundMaterial;
-          points.push({
-            position: point.position.asArray(),
-          });
-      
-          // Save the points array to localStorage
-          localStorage.setItem("points", JSON.stringify(points));
-      
-          openModal(); // Function to open modal
-        } else {
-          openModal(); // Open modal on repeated click
-        }
-      };
-      
-      const onPickingGround = (e) => {
-        const pickResult = scene.pick(e.offsetX, e.offsetY);
-        if (pickResult.hit) {
-          createPoint(pickResult.pickedPoint);
-        }
-      };
-    
-    // Восстановление точек из localStorage при загрузке страницы
-    const pointsData = JSON.parse(localStorage.getItem("points") || "[]");
-    pointsData.forEach((pointData) => {
-      const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
-      point.position = BABYLON.Vector3.FromArray(pointData.position);
-      point.material = groundMaterial;
-    });
-    
-    // Подписка на событие нажатия
-    scene.onPointerDown = onPickingGround;
-           function openModal(){
-           let modal = document.getElementById("myModal");
-           modal.style.display = 'flex';
-        }
-        const modal = document.getElementById('myModal');
-    const closeModalBtn = document.querySelector('.close');
-    
-    if (modal && closeModalBtn) {
-        closeModalBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-    }
-        function closeModal(){
-            let modal = document.getElementById("openModal");
-            modal.style.display = 'none';
-         }
+            // Обработчик нажатия на модель
+            const createPoint = (position) => {
+                const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 1); 
+            
+                if (!existingPoint) {
+                    const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+                    point.position = position;
+                    point.material = groundMaterial;
+                    
+                    openModal((photoData, info) => {
+                        points.push({
+                            position: point.position.asArray(),
+                            photoData: photoData,
+                            info: info,
+                        });
+                        localStorage.setItem("points", JSON.stringify(points));
+                    });
+                } else {
+                    openModalForExisting(existingPoint); 
+                }
+            };
+            
+            const onPickingGround = (e) => {
+                const pickResult = scene.pick(e.offsetX, e.offsetY);
+                if (pickResult.hit) {
+                    createPoint(pickResult.pickedPoint);
+                }
+            };
+            
+            // Восстановление точек из localStorage при загрузке страницы
+            const pointsData = JSON.parse(localStorage.getItem("points") || "[]");
+            pointsData.forEach((pointData) => {
+                const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+                point.position = BABYLON.Vector3.FromArray(pointData.position);
+                point.material = groundMaterial;
+                // Восстановление фото и информации по мере необходимости
+                points.push(pointData);
+            });
+            
+            // Подписка на событие нажатия
+            scene.onPointerDown = onPickingGround;
+            
+            function openModal(callback) {
+                const modal = document.getElementById("myModal");
+                const photoInput = document.getElementById("photoInput");
+                const infoInput = document.getElementById("infoInput");
+                const saveBtn = document.getElementById("saveBtn");
+            
+                modal.style.display = 'flex';
+            
+                saveBtn.onclick = () => {
+                    let file = photoInput.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                            const photoData = reader.result;
+                            const info = infoInput.value;
+                            callback(photoData, info);
+                            modal.style.display = 'none';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        const photoData = null;
+                        const info = infoInput.value;
+                        callback(photoData, info);
+                        modal.style.display = 'none';
+                    }
+                };
+            }
+            
+            function openModalForExisting(existingPoint) {
+                const modal = document.getElementById("myModal");
+                const photoDisplay = document.getElementById("photoDisplay");
+                const infoDisplay = document.getElementById("infoDisplay");
+                const insert = document.getElementById("insert");
+                if (existingPoint.photoData) {
+                    photoDisplay.src = existingPoint.photoData;
+                    photoDisplay.style.display = 'block';
+                    photoDisplay.style.width ='200px';
+                    photoDisplay.style.height ='200px';
+                   // insert.style.display = 'none';
+                } else {
+                    photoDisplay.style.display = 'none';
+                }
+                
+                infoDisplay.textContent = existingPoint.info;
+                infoDisplay.style.display = 'block';
+            
+                modal.style.display = 'flex';
+            }
+            
+            const modal = document.getElementById('myModal');
+            const closeModalBtn = document.querySelector('.close');
+            
+            if (modal && closeModalBtn) {
+                closeModalBtn.addEventListener('click', () => {
+                    modal.style.display = 'none';
+                });
+            }
+            
+            
+            
+            
  
 
     
