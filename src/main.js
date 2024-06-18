@@ -7,10 +7,10 @@ import * as GUI from 'babylonjs-gui';
 import {convertRatioToExpression,GetDistance} from "./functions";
 import {options,modelOptions} from"./gui";
 //создание переменных
+let BuildingInScene;
 let loadedModel;
 let divFps = document.getElementById("fps");
 let drone ;
-let building;
 let angle = 72;
 let distance;
 let input_distance = document.getElementById('distance');
@@ -84,39 +84,39 @@ const createScene = function(){
         let direction = new BABYLON.Vector3(0, 0, 1);
 
         scene.onBeforeRenderObservable.add(() => {
-            // Поворот модели
+          
             if (scene.inputStates.rotateLeft) {
                 drone.rotation.y -= rotationSpeed;
-                // Поворачиваем вектор направления
                 direction = BABYLON.Vector3.TransformCoordinates(direction, BABYLON.Matrix.RotationY(-rotationSpeed));
             }
+
             if (scene.inputStates.rotateRight) {
                 drone.rotation.y += rotationSpeed;
                 direction = BABYLON.Vector3.TransformCoordinates(direction, BABYLON.Matrix.RotationY(rotationSpeed));
             }
-            // Движение модели
+
             let forward = direction.clone();
             forward.y = 0;
             forward = forward.normalize();
             let right = new BABYLON.Vector3(-forward.z, 0, forward.x);
 
             if (scene.inputStates.up) {
-                drone.position = drone.position.add(forward.scale(speed)) //вперёд
+                drone.position = drone.position.add(forward.scale(speed)) 
             }
             if (scene.inputStates.down) {
-                drone.position = drone.position.subtract(forward.scale(speed)); // назад
+                drone.position = drone.position.subtract(forward.scale(speed)); 
             }
             if (scene.inputStates.left) {
-                drone.position = drone.position.add(right.scale(speed)); // влево
+                drone.position = drone.position.add(right.scale(speed)); 
             }
             if (scene.inputStates.right) {
-                drone.position = drone.position.subtract(right.scale(speed)); // вправо
+                drone.position = drone.position.subtract(right.scale(speed)); 
             }
             if (scene.inputStates.jump) {
-                drone.position.y += speed; // Подъем
+                drone.position.y += speed; 
             }
             if (scene.inputStates.crouch) {
-                drone.position.y -= speed; //спуск
+                drone.position.y -= speed; 
             }
         });
 
@@ -191,13 +191,12 @@ const createScene = function(){
 
 
         let point =  drone.position.clone();
-//обработка приближения/отдаления
         scene.registerBeforeRender(function (){
-
+            console.log(loadedModel);
             divFps.innerHTML = engine.getFps().toFixed() + " fps";
                 point =  drone.position.clone();
-                let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
-                let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
+                let forwardVector = new BABYLON.Vector3(0, 0, 1); 
+                let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix());
                 let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
                 let hit = scene.pickWithRay(pickRay);
 
@@ -222,122 +221,171 @@ const createScene = function(){
                
         })
     });
-            const points = [];
 
-            // Обработчик нажатия на модель
-            const createPoint = (position) => {
-                const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 1); 
+    const points = [];
+
+   
+    const createPoint = (position) => {
+        const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 0.1); 
+      
+        if (!existingPoint) {
+            const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+            point.position = position;
             
-                if (!existingPoint) {
-                    const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
-                    point.position = position;
-                    point.material = groundMaterial;
-                    
-                    openModal((photoData, info) => {
-                        points.push({
-                            position: point.position.asArray(),
-                            photoData: photoData,
-                            info: info,
-                        });
-                        localStorage.setItem("points", JSON.stringify(points));
-                    });
-                } else {
-                    openModalForExisting(existingPoint); 
-                }
-            };
-            
-            const onPickingGround = (e) => {
-                const pickResult = scene.pick(e.offsetX, e.offsetY);
-                if (pickResult.hit) {
-                    createPoint(pickResult.pickedPoint);
-                }
-            };
-            
-            // Восстановление точек из localStorage при загрузке страницы
-            const pointsData = JSON.parse(localStorage.getItem("points") || "[]");
-            pointsData.forEach((pointData) => {
-                const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
-                point.position = BABYLON.Vector3.FromArray(pointData.position);
-                point.material = groundMaterial;
-                // Восстановление фото и информации по мере необходимости
-                points.push(pointData);
-            });
-            
-            // Подписка на событие нажатия
-            scene.onPointerDown = onPickingGround;
-            
-            function openModal(callback) {
-                const modal = document.getElementById("myModal");
-                const photoInput = document.getElementById("photoInput");
-                const infoInput = document.getElementById("infoInput");
-                const saveBtn = document.getElementById("saveBtn");
-            
-                modal.style.display = 'flex';
-            
-                saveBtn.onclick = () => {
-                    let file = photoInput.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            const photoData = reader.result;
-                            const info = infoInput.value;
-                            callback(photoData, info);
-                            modal.style.display = 'none';
-                        };
-                        reader.readAsDataURL(file);
-                    } else {
-                        const photoData = null;
-                        const info = infoInput.value;
-                        callback(photoData, info);
-                        modal.style.display = 'none';
-                    }
+            openModal((photoData, info, materialName) => {
+                point.material = createMaterial(materialName);
+                const pointData = {
+                    position: point.position.asArray(),
+                    photoData: photoData,
+                    info: info,
+                    materialName: materialName
                 };
-            }
-            
-            function openModalForExisting(existingPoint) {
-                const modal = document.getElementById("myModal");
-                const photoDisplay = document.getElementById("photoDisplay");
-                const infoDisplay = document.getElementById("infoDisplay");
-                const insert = document.getElementById("insert");
-                if (existingPoint.photoData) {
-                    photoDisplay.src = existingPoint.photoData;
-                    photoDisplay.style.display = 'block';
-                    photoDisplay.style.width ='200px';
-                    photoDisplay.style.height ='200px';
-                   // insert.style.display = 'none';
-                } else {
-                    photoDisplay.style.display = 'none';
-                }
-                
-                infoDisplay.textContent = existingPoint.info;
-                infoDisplay.style.display = 'block';
-            
-                modal.style.display = 'flex';
-            }
-            
-            const modal = document.getElementById('myModal');
-            const closeModalBtn = document.querySelector('.close');
-            
-            if (modal && closeModalBtn) {
-                closeModalBtn.addEventListener('click', () => {
-                    modal.style.display = 'none';
-                });
-            }
-            
-            
-            
-            
- 
-
+                points.push({ mesh: point, ...pointData });   
+                savePointsToLocalStorage();
+            });
+        } else {
+            openModalForExisting(existingPoint); 
+        }
+    };
     
+    const onPickingGround = (e) => {
+        const pickResult = scene.pick(e.offsetX, e.offsetY);
+        if (pickResult.hit) {
+            createPoint(pickResult.pickedPoint);
+        }
+    };
+    
+    
+    const pointsData = JSON.parse(localStorage.getItem("points") || "[]");
+    pointsData.forEach((pointData) => {
+        const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+        point.position = BABYLON.Vector3.FromArray(pointData.position);
+        point.material = createMaterial(pointData.materialName);
+        points.push({ mesh: point, ...pointData });
+    });
+    
+    scene.onPointerDown = onPickingGround;
+    
+    function openModal(callback, pointData = null) {
+        const modal = document.getElementById("myModal");
+        const photoInput = document.getElementById("photoInput");
+        const infoInput = document.getElementById("infoInput");
+        const saveBtn = document.getElementById("saveBtn");
+        const materialInputs = document.querySelectorAll('input[name="material"]');
+        const photoDisplay = document.getElementById("photoDisplay");
+        const infoDisplay = document.getElementById("infoDisplay");
+       
+        photoInput.value = '';
+        infoInput.value = '';
+        materialInputs.forEach(input => input.checked = false);
+    
+        if (pointData) {
+            if (pointData.photoData) {
+                photoDisplay.src = pointData.photoData;
+                photoDisplay.style.display = 'block';
+            } else {
+                photoDisplay.style.display = 'none';
+            }
+            infoDisplay.innerHTML = pointData.info;
+            const selectedMaterial = Array.from(materialInputs).find(input => input.value === pointData.materialName);
+            if (selectedMaterial) {
+                selectedMaterial.checked = true;
+            }
+        } else {
+            photoDisplay.style.display = 'none';
+        }
+    
+        saveBtn.onclick = null;
+    
+        modal.style.display = 'flex';
+    
+        saveBtn.onclick = () => {
+            const file = photoInput.files[0];
+            let photoData = null;
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = () => {
+                photoData = reader.result;
+                savePointData(photoData);
+            };
+            reader.readAsDataURL(file);
+        } else {
+            photoData = pointData ? pointData.photoData : null;
+            savePointData(photoData);
+        }
 
+        function savePointData(photoData) {
+            const info = infoInput.value;
+            const selectedMaterial = Array.from(materialInputs).find(input => input.checked);
+            const materialName = selectedMaterial.value;
+            if (pointData) {
+                
+                const index = points.findIndex(p => p.position.every((val, idx) => val === pointData.position[idx]));
+                points[index] = {
+                    ...points[index],
+                    photoData: photoData,
+                    info: info,
+                    materialName: materialName
+                };
+                pointData.mesh.material = createMaterial(materialName);
+            } else {
+                callback(photoData, info, materialName);
+            }
+            savePointsToLocalStorage();
+            modal.style.display = 'none';
+        }
+    };
+}
 
-
-
-
+function openModalForExisting(existingPoint) {
+    openModal(null, existingPoint);
+}
+    
+    function createMaterial(materialName) {
+        let material;
+        switch (materialName) {
+            case 'material1':
+                material = new BABYLON.StandardMaterial('material1', scene);
+                material.diffuseColor = new BABYLON.Color3(0, 1, 0); // Красный
+                break;
+            case 'material2':
+                material = new BABYLON.StandardMaterial('material2', scene);
+                material.diffuseColor = new BABYLON.Color3(0.99, 0.99, 0); // Зеленый
+                break;
+            case 'material3':
+                material = new BABYLON.StandardMaterial('material3', scene);
+                material.diffuseColor = new BABYLON.Color3(1, 0, 0); // Синий
+                break;
+            default:
+                material = new BABYLON.StandardMaterial('defaultMaterial', scene);
+                material.diffuseColor = new BABYLON.Color3(1, 1, 1); // Белый
+                break;
+        }
+        return material;
+    }
+    
+    function savePointsToLocalStorage() {
+        const pointsToSave = points.map(p => ({
+            position: p.position,
+            photoData: p.photoData,
+            info: p.info,
+            materialName: p.materialName
+        }));
+        localStorage.setItem("points", JSON.stringify(pointsToSave));
+    }
+    
+    
+    const modal = document.getElementById('myModal');
+    const closeModalBtn = document.querySelector('.close');
+    
+    if (modal && closeModalBtn) {
+        closeModalBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    }       
     return scene;
 }
-//создание сцены
+
 const scene = createScene();
 engine.runRenderLoop(function(){
     scene.render();
@@ -345,8 +393,6 @@ engine.runRenderLoop(function(){
 window.addEventListener('resize', function(){
     engine.resize();
 });
-
-//Модуль GUI
 
 const gui = new dat.GUI();
  const parameters = {
@@ -364,7 +410,6 @@ modelSelect.onChange(function (value) {
 });
 
 inputField.onChange(function(value) {
-    // Обновляем переменную с новым значением
     angle = value;
      FOV = BABYLON.Tools.ToRadians(angle);
 });
@@ -372,8 +417,8 @@ inputField.onChange(function(value) {
 SelectField.onChange(function (value) {
     format = convertRatioToExpression(value);
 })
-
-loadAndShowModel(parameters.selectedModel);
+BuildingInScene = parameters.selectedModel;
+loadAndShowModel(BuildingInScene);
 
 function loadAndShowModel(modelPath) {
     if (loadedModel) {
@@ -382,9 +427,8 @@ function loadAndShowModel(modelPath) {
     BABYLON.SceneLoader.ImportMesh('', '/assets/models/', modelPath, scene, function (meshes) {
 
         loadedModel = meshes[0];
-        building = loadedModel;
         loadedModel.position = new BABYLON.Vector3(0,0.5,20);
-        
+      
 
     });
 }

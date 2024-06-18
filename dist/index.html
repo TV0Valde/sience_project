@@ -52,9 +52,21 @@
       <span id="insert">
       <input type="file" id="photoInput" accept="image/*" />
       <textarea id="infoInput" placeholder="Введите информацию"></textarea>
+      <div class="color">
+        <span>Степень повреждения в точке:</span>
+        <label>
+            <input type="radio" name="material" value="material1">Незначительная
+        </label>
+        <label>
+            <input type="radio" name="material" value="material2"> Средняя
+        </label>
+        <label>
+            <input type="radio" name="material" value="material3"> Серьёзное повреждение
+        </label>
+    </div>
       </span>  
       <img id="photoDisplay" src="" alt="Фото" style="display:none;" height="200px" width="200px"/>
-      <p id="infoDisplay" style="display:none;"></p>
+      <p id="infoDisplay" ></p>
       <button id="saveBtn">Сохранить</button>
   </div>
 </div>
