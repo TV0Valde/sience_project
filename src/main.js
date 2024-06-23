@@ -5,7 +5,7 @@ import 'babylonjs-loaders'
 import dat from 'dat.gui';
 import * as GUI from 'babylonjs-gui';
 import {convertRatioToExpression,GetDistance} from "./functions";
-import {options,modelOptions} from"./gui";
+import {options,modelOptions,modelOptionsTest} from"./gui";
 //создание переменных
 let BuildingInScene;
 let loadedModel;
@@ -189,10 +189,11 @@ const createScene = function(){
             }
         });
 
-
+       
         let point =  drone.position.clone();
         scene.registerBeforeRender(function (){
-            console.log(loadedModel);
+            let tmp = document.getElementById('model-select').value;
+            console.log(tmp);
             divFps.innerHTML = engine.getFps().toFixed() + " fps";
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); 
@@ -268,23 +269,41 @@ const createScene = function(){
     
     function openModal(callback, pointData = null) {
         const modal = document.getElementById("myModal");
+        const modalContent = document.getElementById("modal-content");
         const photoInput = document.getElementById("photoInput");
         const infoInput = document.getElementById("infoInput");
         const saveBtn = document.getElementById("saveBtn");
+        const insert = document.getElementById("insert");
         const materialInputs = document.querySelectorAll('input[name="material"]');
         const photoDisplay = document.getElementById("photoDisplay");
         const infoDisplay = document.getElementById("infoDisplay");
-       
+        const updateBtn = document.getElementById('updateBtn');
+        const infoBlock = document.getElementById('info');
+        updateBtn.onclick = ()=>{
+            modalContent.style.height = "30%";
+            insert.style.display ='block';
+            infoBlock.style.display = 'none';
+        }
         photoInput.value = '';
         infoInput.value = '';
         materialInputs.forEach(input => input.checked = false);
-    
+        if(callback ==null){
+            modalContent.style.height = "55%";
+            insert.style.display ='none';
+        }
+        else{
+            modalContent.style.height = "30%";
+            insert.style.display ='block';
+        }
+        
         if (pointData) {
             if (pointData.photoData) {
                 photoDisplay.src = pointData.photoData;
                 photoDisplay.style.display = 'block';
+                infoDisplay.style.display = 'block';
             } else {
                 photoDisplay.style.display = 'none';
+                infoDisplay.style.display = 'none';
             }
             infoDisplay.innerHTML = pointData.info;
             const selectedMaterial = Array.from(materialInputs).find(input => input.value === pointData.materialName);
@@ -293,6 +312,7 @@ const createScene = function(){
             }
         } else {
             photoDisplay.style.display = 'none';
+            infoDisplay.style.display = 'none';
         }
     
         saveBtn.onclick = null;
@@ -300,6 +320,7 @@ const createScene = function(){
         modal.style.display = 'flex';
     
         saveBtn.onclick = () => {
+           
             const file = photoInput.files[0];
             let photoData = null;
         if (file) {
@@ -332,6 +353,7 @@ const createScene = function(){
                 callback(photoData, info, materialName);
             }
             savePointsToLocalStorage();
+            infoBlock.style.display = 'block';
             modal.style.display = 'none';
         }
     };
@@ -394,18 +416,30 @@ window.addEventListener('resize', function(){
     engine.resize();
 });
 
-const gui = new dat.GUI();
+/*const gui = new dat.GUI();
  const parameters = {
     inputValue: angle  ,
     selectedModel: 'build2.glb',
     selectedOption: 'Option1',
-};
+};*/
 
-const modelSelect = gui.add(parameters, 'selectedModel', Object.keys(modelOptions)).name('Выберите модель');
-const inputField = gui.add(parameters, 'inputValue').name('Введите угол');
-const SelectField = gui.add(parameters,'selectedOption',options).name('Формат');
+//const modelSelect = gui.add(parameters, 'selectedModel', Object.keys(modelOptions)).name('Выберите модель');
+//const inputField = gui.add(parameters, 'inputValue').name('Введите угол');
+//const SelectField = gui.add(parameters,'selectedOption',options).name('Формат');
+let modelField = document.getElementById('model-select');
+let FOVField = document.getElementById('FOV-input');
+let formatField = document.getElementById('format-select');
+modelField.addEventListener('change',function(){
+    loadAndShowModel(this.value);
+})
 
-modelSelect.onChange(function (value) {
+FOVField.addEventListener('change',function(){
+    angle = this.value;
+    FOV =BABYLON.Tools.ToRadians(angle);
+})
+formatField.addEventListener('change', function(){
+    format = convertRatioToExpression(this.value);})
+/*modelSelect.onChange(function (value) {
     loadAndShowModel(modelOptions[value]);
 });
 
@@ -416,9 +450,9 @@ inputField.onChange(function(value) {
 
 SelectField.onChange(function (value) {
     format = convertRatioToExpression(value);
-})
-BuildingInScene = parameters.selectedModel;
-loadAndShowModel(BuildingInScene);
+})*/
+
+loadAndShowModel(modelField.value);
 
 function loadAndShowModel(modelPath) {
     if (loadedModel) {
