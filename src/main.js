@@ -198,7 +198,7 @@ const createScene = function(){
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); 
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix());
-                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
+                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 600);
                 let hit = scene.pickWithRay(pickRay);
 
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
@@ -224,7 +224,7 @@ const createScene = function(){
     });
 
     const points = [];
-
+    let currentModel = document.getElementById('model-select').value;
    
     const createPoint = (position) => {
         const existingPoint = points.find(p => BABYLON.Vector3.Distance(BABYLON.Vector3.FromArray(p.position), position) < 0.1); 
@@ -239,7 +239,8 @@ const createScene = function(){
                     position: point.position.asArray(),
                     photoData: photoData,
                     info: info,
-                    materialName: materialName
+                    materialName: materialName,
+                    model: currentModel
                 };
                 points.push({ mesh: point, ...pointData });   
                 savePointsToLocalStorage();
@@ -391,11 +392,45 @@ function openModalForExisting(existingPoint) {
             position: p.position,
             photoData: p.photoData,
             info: p.info,
-            materialName: p.materialName
+            materialName: p.materialName,
+            model:p.model
         }));
         localStorage.setItem("points", JSON.stringify(pointsToSave));
     }
+
+    let modelField = document.getElementById('model-select');
+    let FOVField = document.getElementById('FOV-input');
+    let formatField = document.getElementById('format-select');
+    modelField.addEventListener('change',function(){
+        loadAndShowModel(this.value);
+    })
     
+    FOVField.addEventListener('change',function(){
+        angle = this.value;
+        FOV =BABYLON.Tools.ToRadians(angle);
+    })
+    formatField.addEventListener('change', function(){
+        format = convertRatioToExpression(this.value);})
+
+    loadAndShowModel(modelField.value);
+
+function loadAndShowModel(modelPath) {
+    if (loadedModel) {
+        loadedModel.dispose();
+    }
+    BABYLON.SceneLoader.ImportMesh('', '/assets/models/', modelPath, scene, function (meshes) {
+
+        loadedModel = meshes[0];
+        loadedModel.position = new BABYLON.Vector3(0,0.5,20);
+      
+
+    });
+    currentModel = modelPath;
+    updatePointsVisibility();
+}
+function updatePointsVisibility(){
+    points.forEach(p=>{p.mesh.isVisible=(p.model === currentModel);})
+}
     
     const modal = document.getElementById('myModal');
     const closeModalBtn = document.querySelector('.close');
@@ -426,19 +461,7 @@ window.addEventListener('resize', function(){
 //const modelSelect = gui.add(parameters, 'selectedModel', Object.keys(modelOptions)).name('Выберите модель');
 //const inputField = gui.add(parameters, 'inputValue').name('Введите угол');
 //const SelectField = gui.add(parameters,'selectedOption',options).name('Формат');
-let modelField = document.getElementById('model-select');
-let FOVField = document.getElementById('FOV-input');
-let formatField = document.getElementById('format-select');
-modelField.addEventListener('change',function(){
-    loadAndShowModel(this.value);
-})
 
-FOVField.addEventListener('change',function(){
-    angle = this.value;
-    FOV =BABYLON.Tools.ToRadians(angle);
-})
-formatField.addEventListener('change', function(){
-    format = convertRatioToExpression(this.value);})
 /*modelSelect.onChange(function (value) {
     loadAndShowModel(modelOptions[value]);
 });
@@ -452,17 +475,3 @@ SelectField.onChange(function (value) {
     format = convertRatioToExpression(value);
 })*/
 
-loadAndShowModel(modelField.value);
-
-function loadAndShowModel(modelPath) {
-    if (loadedModel) {
-        loadedModel.dispose();
-    }
-    BABYLON.SceneLoader.ImportMesh('', '/assets/models/', modelPath, scene, function (meshes) {
-
-        loadedModel = meshes[0];
-        loadedModel.position = new BABYLON.Vector3(0,0.5,20);
-      
-
-    });
-}
