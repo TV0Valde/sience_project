@@ -300,6 +300,8 @@ const createScene = function(){
             if (pointData.photoData) {
                 photoDisplay.src = pointData.photoData;
                 photoDisplay.style.display = 'block';
+                photoDisplay.style.height ="75%";
+                photoDisplay.style.width ="75%";
                 infoDisplay.style.display = 'block';
             } else {
                 photoDisplay.style.display = 'none';
