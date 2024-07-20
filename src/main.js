@@ -79,7 +79,7 @@ const createScene = function(){
         drone.scaling.y = 0.1;
         camera.parent = drone;
     
-        let speed = 0.1;
+        let speed = 0.3;
         let rotationSpeed = 0.02;
         let direction = new BABYLON.Vector3(0, 0, 1);
 

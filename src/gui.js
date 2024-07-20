@@ -38,16 +38,18 @@ formatOption.forEach(option=>
     )
 );
 export  let modelOptions = {
-    'Модель 1': 'build_m.glb',
+    'Модель 1': '123.glb',
     'Модель 2': 'building.glb',
-    'Модель 3': 'build2.glb'
+    'Модель 3': 'build2.glb',
+    'Модель 4': 'atlanta.glb',
+    'Модель 5': 'empire_state_building.glb'
 };
-
+//empire_state_building
 let modelOptionList = document.getElementById('model-select').options;
 export let modelOptionsTest = [
   {
     text: 'Модель 1',
-    value: 'build_m.glb'
+    value: '123.glb'
   },
   {
     text: 'Модель 2',
@@ -57,6 +59,14 @@ export let modelOptionsTest = [
   {
     text: 'Модель 3',
     value: 'build2.glb'
+  },
+  {
+    text: 'Модель 4',
+    value: 'atlanta.glb'
+  },
+  {
+    text: 'Модель 4',
+    value: 'empire_state_building.glb'
   }
 ];
 
