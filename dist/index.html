@@ -108,6 +108,40 @@
 </div>
 <div id="distance"></div>
 <div id="fps">0</div>
+<div id="myModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+          <span class="close">&times;</span>
+        </div>
+        <form>
+          <label for="textarea">Введите информацию о точке:</label>
+          <textarea id="textarea" rows="4"></textarea>
+    
+          <label for="select">Выберите изображение:</label>
+          <select id="select">
+            <option value="option1">Картинка 1</option>
+            <option value="option2">Картинка 2</option>
+            <option value="option3">Картинка 3</option>
+          </select>
+    
+          <label>Выберите состояние:</label>
+          <div class="radio-group">
+            <input type="radio" id="radio1" name="radio" value="radio1">
+            <label for="radio1">Нет повреждений</label>
+            <input type="radio" id="radio2" name="radio" value="radio2">
+            <label for="radio2">Незначительные повреждения</label>
+            <input type="radio" id="radio3" name="radio" value="radio3">
+            <label for="radio3">Аварийные повреждения</label>
+          </div>
+    
+          <div class="button-group">
+            <button type="button" class="btn">Сохранить</button>
+            <button type="button" class="btn">Осмотр</button>
+          </div>
+        </form>
+      </div>
+    </div>
+</div>
 <script src="/dist/bundle.js">
 </script>
 </body>

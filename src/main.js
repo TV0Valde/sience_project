@@ -105,7 +105,7 @@ const createScene = function(){
         drone.scaling.x = 0.1;
         drone.scaling.y = 0.1;
         camera.parent = drone;
-       miniMap.parent =camera;
+      // miniMap.parent =camera;
         //задание скорости
         let speed = 0.1;
         let rotationSpeed = 0.02;
@@ -231,16 +231,13 @@ const createScene = function(){
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); // вектор направления вдоль оси Z
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix()); // преобразование вектора в локальные координаты mesh
+                
                 let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 1000);
                 let hit = scene.pickWithRay(pickRay);
                 let name = '';
                 if (hit.pickedMesh && hit.pickedMesh !== plane) {
                      distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
-                    plane.scaling.y = 2* distance * Math.tan(FOV/2);
-                    if (distance < 9.5)                
-                        miniMap.position = new BABYLON.Vector3(0,0,0);           
-                    else 
-                        miniMap.position = new BABYLON.Vector3(0,0,98);     
+                    plane.scaling.y = 2* distance * Math.tan(FOV/2); 
                      if (format ===1){
                          plane.scaling.x = plane.scaling.y;   
                      }
