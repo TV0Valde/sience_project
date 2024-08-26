@@ -40,34 +40,38 @@ formatOption.forEach(option=>
 export  let modelOptions = {
     'Модель 1': '123.glb',
     'Модель 2': 'building.glb',
-    'Модель 3': 'build2.glb',
-    'Модель 4': 'atlanta.glb',
-    'Модель 5': 'empire_state_building.glb'
+    'Модель 3': 'test1.glb',
+    'Модель 4': 'stadium.glb',
+    'Модель 5': 'home.glb',
 };
 //empire_state_building
 let modelOptionList = document.getElementById('model-select').options;
 export let modelOptionsTest = [
   {
-    text: 'Модель 1',
-    value: '123.glb'
+    text: 'Жилой дом 1',
+    value: 'second_build.glb'
   },
   {
-    text: 'Модель 2',
+    text: 'Школа',
     value: 'building.glb',
     selected: true
   },
   {
-    text: 'Модель 3',
-    value: 'build2.glb'
+    text: 'Жилой дом 2',
+    value: 'first_build.glb'
   },
   {
-    text: 'Модель 4',
-    value: 'atlanta.glb'
+    text: 'Стадион',
+    value: 'stadium.glb'
   },
   {
-    text: 'Модель 4',
-    value: 'empire_state_building.glb'
-  }
+    text: 'Жилой дом 3',
+    value: 'third_build.glb'
+  },
+  {
+    text: 'Автовокзал',
+    value: 'railway_station.glb'
+  },
 ];
 
 modelOptionsTest.forEach(option =>

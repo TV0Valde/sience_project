@@ -61,7 +61,7 @@ const createScene = function(){
     //Земля
     let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 300, height: 300 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
-    groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/grass.jpg", scene);
+    groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/123.jpg", scene);
     ground.material = groundMaterial;
     ground.position = new BABYLON.Vector3(0,0,0);
 
@@ -369,21 +369,21 @@ function openModalForExisting(existingPoint) {
     function createMaterial(materialName) {
         let material;
         switch (materialName) {
-            case 'material1':
+            case 'green':
                 material = new BABYLON.StandardMaterial('material1', scene);
-                material.diffuseColor = new BABYLON.Color3(0, 1, 0); // Красный
+                material.diffuseColor = new BABYLON.Color3(0, 1, 0); 
                 break;
-            case 'material2':
+            case 'yellow':
                 material = new BABYLON.StandardMaterial('material2', scene);
-                material.diffuseColor = new BABYLON.Color3(0.99, 0.99, 0); // Зеленый
+                material.diffuseColor = new BABYLON.Color3(0.99, 0.99, 0); 
                 break;
-            case 'material3':
+            case 'red':
                 material = new BABYLON.StandardMaterial('material3', scene);
-                material.diffuseColor = new BABYLON.Color3(1, 0, 0); // Синий
+                material.diffuseColor = new BABYLON.Color3(1, 0, 0); 
                 break;
             default:
                 material = new BABYLON.StandardMaterial('defaultMaterial', scene);
-                material.diffuseColor = new BABYLON.Color3(1, 1, 1); // Белый
+                material.diffuseColor = new BABYLON.Color3(1, 1, 1); 
                 break;
         }
         return material;
