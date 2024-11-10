@@ -14,12 +14,29 @@ html, body {
     background-color: rgb(0, 110, 201);
     border: 2px solid white;
     text-align: center;
-    font-size: 16px;
+    font-size: 20px;
     right:10px;
     bottom: 10px;
     border-radius: 12.5%;
     padding: 0.25%;
     color: white;
+    height: 30px;
+}
+#aboutBuilding{
+    position: absolute;
+    background-color: rgb(0, 110, 201);
+    border: 2px solid white;
+    text-align: center;
+    font-size: 16px;
+    left:10px;
+    bottom: 10px;
+    border-radius: 12.5%;
+    padding: 0.25%;
+    color: white;
+}
+#quesitonMark{
+    height: 30px;
+    width: 30px;
 }
 #miniWindow { position: absolute; top: 10px; left: 10px; width: 200px; height: 200px; border: 1px solid black; }
 #fps {
@@ -97,6 +114,8 @@ html, body {
 }
 #photoDisplay{
    margin: 0 auto;
+   height: 25%;
+   width: 25%;
 }
 .color,#photoInput{
     margin-bottom: 10px;
@@ -108,4 +127,20 @@ button{
     border: 2px solid black;
 }
 
+#date{
+    margin-bottom: 2%;
+}
+
+#photo-viewer{
+    display: flex;
+    align-items: center;
+}
+#left-arrow{
+    height: 50px;
+    width: 50px;
+}
+#right-arrow{
+    height: 50px;
+    width: 50px;
+}
 
