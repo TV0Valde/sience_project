@@ -4,48 +4,69 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="user-scalable=0, initial-scale=1, minimum-scale=1, maximum-scale=1, width=device-width, minimal-ui=1">
     <title>Test Project</title>
-    <style>
-        canvas{
-            width:100%;
-            height:100%;
-        }
-        html, body{
-            margin:0;
-            overflow: hidden;
-        }
-        #distance{
-            position: absolute;
-                background-color: black;
-                border: 2px solid red;
-                text-align: center;
-                font-size: 16px;
-            right:0;
-            bottom: 1px;
-      
-            color: white;
-        }
-        #miniWindow { position: absolute; top: 10px; left: 10px; width: 200px; height: 200px; border: 1px solid black; }
-        #fps {
-                position: absolute;
-                background-color: black;
-                border: 2px solid red;
-                text-align: center;
-                font-size: 16px;
-                color: white;
-                top: 15px;
-                left: 10px;
-                width: 60px;
-                height: 20px;
-            }
-    </style>
+    <link rel="stylesheet" href="main.css">
+    <link rel="icon" href="favicon/favicon.jpg" type="image/x-icon">
+   <!-- <link rel="stylesheet" href="css/bootstrap.css">-->
 </head>
 <body>
 <canvas id="renderCanvas">
 </canvas>
+<div id ="aboutBuilding"> <img id="quesitonMark" src="assets/images/interface/aboutBuilding.svg" alt="Информация о здании"/></div>
 <div id="distance"></div>
-<div id="fps">0</div>
+<!--<div id="fps">0</div>-->
+<div id="settingPanel">
+  <label >Выберите модель:</label>
+  <select name="model" id="model-select" class="model_select">
+  </select>
+  <label >Введите угол:</label>
+  <input type="text" name="FOV" id="FOV-input" value="72">
+  <label >Выберите формат:</label>
+  <select name="format" id="format-select"> 
+  </select>
+</div>
+  <div id="myModal" class="modal">
+  <div class="modal-content" id="modal-content" >
+      <span class="close">&times;</span>
+      <span id="insert">
+        <span>Степень повреждения в точке:</span>
+        <div class="color">
+        <label>
+            <input type="radio" name="material" value="green">Незначительная
+        </label>
+        <label>
+            <input type="radio" name="material" value="yellow"> Средняя
+        </label>
+        <label>
+            <input type="radio" name="material" value="red"> Значительная
+        </label>
+    </div>
+    <input type="file" id="photoInput" accept="image/*" />
+    <div>
+    <label for="infoInput">Введите информацию о точке:</label>
+    <div><textarea id="infoInput" ></textarea></div>
+    <label for="date">Дата осмотра:</label>
+    <input type="date" name="date" id="date">
+  </div>
+      </span>  
+      <span id="info">
+        <p id="dateDisplay" style="display: none;"></p>
+        <div id="photo-viewer">
+         <img id="left-arrow" src="assets/images/interface/left.svg" alt="назад"/>
+      <img id="photoDisplay" src="" alt="Фото" style="display:none;" />
+      <img id="right-arrow" src="assets/images/interface/right.svg" alt="вперёд"/>
+      </div>
+      <p id="infoDisplay" style="display: none;" ></p>
+    </span> 
+      <button  id="deleteBtn">Удалить</button>
+      <button id="saveBtn">Сохранить</button>
+      <button id="updateBtn">Редактировать</button>
+      <button id="addBtn">Добавить</button>
+  </div>
+  </div>
+
+
+
 <script src="/dist/bundle.js">
 </script>
-<!--<script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>-->
 </body>
 </html>
