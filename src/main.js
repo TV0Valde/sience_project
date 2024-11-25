@@ -4,7 +4,7 @@
 import * as BABYLON from 'babylonjs';
 import "@babylonjs/loaders/glTF";
 import 'babylonjs-loaders'
-import {convertRatioToExpression,GetDistance} from "./functions";
+import {convertRatioToExpression,GetDistance,formatDate,calculateDistance} from "./functions";
 import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSelect";
 import {fetchAllFormats} from "./formatSelect";
 
@@ -22,6 +22,7 @@ const createScene = function(){
 /**
  * Создание и настройка Камеры
  */
+    // const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
@@ -77,7 +78,7 @@ const createScene = function(){
 /**
  * Создание, загрузка и настройка модели БПЛА
  */
-        const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
+        const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","BPLA.glb", scene, function (newMeshes) {
             drone = newMeshes[0];
             
         drone.rotationQuaternion = null;
@@ -246,99 +247,106 @@ const createScene = function(){
     });
 
    /**
-    * Функция создания точки
-    * @param {*} position Координаты для создания
-    */
-    const createPoint = async (position) => {
-        let existingPoint = await checkExistingPoint(position);
-    
-        if (!existingPoint) {
-            const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
-            point.position = position;
-    
-            openModal(async (photoData, info, materialName, checkupDate) => {
-                point.material = createMaterial(materialName);
-    
-                const pointData = {
-                    position: point.position.asArray(),
+ * Функция создания точки
+ * @param {*} position Координаты для создания
+ */
+const createPoint = async (position) => {
+    let existingPoint = await checkExistingPoint(position);
+
+    if (!existingPoint) {
+        const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.5 }, scene);
+        point.position = position;
+
+        openModal(async (photoData, info, materialName, checkupDate) => {
+            point.material = createMaterial(materialName);
+
+            const pointData = {
+                position: point.position.asArray(),
+                buildingId: selectedBuildingId,
+                model: currentModel,
+            };
+
+            try {
+                // Создание точки через API PointsController
+                const pointResponse = await fetch('http://localhost:5141/api/Points/point', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pointData),
+                });
+
+                if (!pointResponse.ok) throw new Error('Не удалось создать точку');
+
+                const createdPoint = await pointResponse.json();
+
+                // Обновление названия точки
+                point.name = `point_${createdPoint.id}`;
+
+                // Создание записи через API PointRecordsController
+                const recordData = {
+                    pointId: createdPoint.id,
                     photoData: photoData,
                     info: info,
                     materialName: materialName,
-                    model: currentModel,
-                    buildingId: selectedBuildingId,
-                    checkupDate : checkupDate
+                    checkupDate: checkupDate,
                 };
-    
-                try {
-                    const response = await fetch('http://localhost:5141/api/Points/point', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(pointData)
-                    });
-    
-                    if (!response.ok) throw new Error('Не удалось создать точку');
-    
-                    const createdPoint = await response.json();
-                    
-                    // Обновление названия точки
-                    point.name = `point_${createdPoint.id}`;
-                    
-                    // Сохранение данных о точке 
-                    point.pointData = {
-                        id: createdPoint.id,
-                        photoData: photoData,
-                        info: info,
-                        materialName: materialName,
-                        checkupDate: checkupDate,
-                        position: position.asArray()
-                    };
-    
-                    console.log('Точка создана:', createdPoint);
-                } catch (error) {
-                    console.error('Ошибка при создании:', error);
-                    // Удаление точки, если не удалось создать
-                    point.dispose();
-                }
-            });
-        } else {
-            openModalForExisting(existingPoint);
-        }
-    };
-    
-    /**
-     * Функция для проверки существует ли точка по близости 
-     * @param {*} position Координаты нажатия
-     */
-    async function checkExistingPoint(position) {
-        const response = await fetch(`http://localhost:5141/api/Points/points?x=${position.x}&y=${position.y}&z=${position.z}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
+
+                const recordResponse = await fetch(`http://localhost:5141/api/points/${createdPoint.id}/records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(recordData),
+                });
+
+                if (!recordResponse.ok) throw new Error('Не удалось создать запись для точки');
+
+                const createdRecord = await recordResponse.json();
+
+                // Сохранение данных о точке и записи
+                point.pointData = {
+                    id: createdPoint.id,
+                    recordId: createdRecord.id,
+                    photoData: photoData,
+                    info: info,
+                    materialName: materialName,
+                    checkupDate: checkupDate,
+                    position: position.asArray(),
+                };
+
+                console.log('Точка создана:', createdPoint);
+                console.log('Запись для точки создана:', createdRecord);
+            } catch (error) {
+                console.error('Ошибка при создании:', error);
+                // Удаление точки, если не удалось создать
+                point.dispose();
+            }
         });
-    
-        if (!response.ok) {
-            console.error('Ошибка при проверке существующих точек:', response.statusText);
-            return true; 
-        }
-    
-        const existingPoints = await response.json();
-        return existingPoints.some(existingPoint => {
-            const distance = calculateDistance(existingPoint.position, position.asArray());
-            return distance < 0.5;
-        });
+    } else {
+        openModalForExisting(existingPoint);
     }
-    /**
-     * Функция Расчёта дистанции между точками
-     * @param {*} pos1 Координаты точки 1
-     * @param {*} pos2 Координаты точки 2
-     * @returns Дистанция между точками
-     */
-    function calculateDistance(pos1, pos2) {
-        return Math.sqrt(
-            Math.pow(pos1[0] - pos2[0], 2) +
-            Math.pow(pos1[1] - pos2[1], 2) +
-            Math.pow(pos1[2] - pos2[2], 2)
-        );
+};
+
+/**
+ * Функция для проверки существует ли точка по близости
+ * @param {*} position Координаты нажатия
+ */
+async function checkExistingPoint(position) {
+    const response = await fetch(`http://localhost:5141/api/Points/points?x=${position.x}&y=${position.y}&z=${position.z}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+        console.error('Ошибка при проверке существующих точек:', response.statusText);
+        return true;
     }
+
+    const existingPoints = await response.json();
+    return existingPoints.some(existingPoint => {
+        const distance = calculateDistance(existingPoint.position, position.asArray());
+        return distance < 0.5;
+    });
+}
+
+  
 
     /**
      * Функция Удаления Точки из базы
@@ -374,32 +382,73 @@ const createScene = function(){
         }
     }
 
-    /**
-     * Функция работы с существующей точкой
-     * @param {*} selectedPointId id Выбранной точки
-     */
-    function onPointSelected(selectedPointId) {
-        const selectedMesh = scene.getMeshByName(`point_${selectedPointId}`);
-        
+/**
+ * Функция работы с существующей точкой
+ * @param {*} selectedPointId ID выбранной точки
+ */
+async function onPointSelected(selectedPointId) {
+    const selectedMesh = scene.getMeshByName(`point_${selectedPointId}`);
+
+    try {
+        // Если данные точки уже есть в меше, используем их
         if (selectedMesh && selectedMesh.pointData) {
+            // Загрузим записи для этой точки
+            const pointRecords = await loadPointRecords(selectedPointId);
+
+            // Добавим записи к данным точки
+            selectedMesh.pointData.records = pointRecords;
+
             openModalForExisting(selectedMesh.pointData);
         } else {
-            fetch(`http://localhost:5141/api/Points/point/${selectedPointId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data) {
-                        // Сохраняем данные в меш для будущего использования
-                        if (selectedMesh) {
-                            selectedMesh.pointData = data;
-                        }
-                        openModalForExisting(data);
-                    } else {
-                        console.warn("Point data not found for ID:", selectedPointId);
-                    }
-                })
-                .catch(error => console.error("Error fetching point data:", error));
+            // Загрузим данные точки с сервера
+            const pointResponse = await fetch(`http://localhost:5141/api/Points/point/${selectedPointId}`, {
+                method: 'GET',
+                headers: { 'Content-Type': 'application/json' },
+            });
+
+            if (!pointResponse.ok) throw new Error(`Не удалось загрузить данные точки ID: ${selectedPointId}`);
+
+            const pointData = await pointResponse.json();
+
+            // Загрузим записи для этой точки
+            const pointRecords = await loadPointRecords(selectedPointId);
+
+            // Добавим записи к данным точки
+            pointData.records = pointRecords;
+
+            // Сохраним данные в меш, если он существует
+            if (selectedMesh) {
+                selectedMesh.pointData = pointData;
+            }
+
+            openModalForExisting(pointData);
         }
+    } catch (error) {
+        console.error("Ошибка получения данных точки:", error);
     }
+}
+
+/**
+ * Функция загрузки записей для точки
+ * @param {*} pointId ID точки
+ * @returns {Promise<Array>} Список записей
+ */
+async function loadPointRecords(pointId) {
+    try {
+        const recordsResponse = await fetch(`http://localhost:5141/api/points/${pointId}/records`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!recordsResponse.ok) throw new Error(`Не удалось загрузить записи для точки ID: ${pointId}`);
+
+        return await recordsResponse.json();
+    } catch (error) {
+        console.error("Ошибка при загрузке записей:", error);
+        return [];
+    }
+}
+
     
 /**
  * Функция обработки нажатия курсором на сцену
@@ -416,19 +465,6 @@ scene.onPointerDown = () => {
     }
 };
 
-/**
- * Функция форматирования даты в формат dd.mm.yyyy
- * @param {string} dateString Строка с датой
- * @returns {string} Отформатированная дата
- */
-function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
-}
 
 /**
  * Функция открытия модального окна
@@ -462,6 +498,8 @@ function openModal(callback, pointData) {
     // Для существующей точки
     if (callback === null) {
         modalContent.style.height = "60%";
+        photoDisplay.style.height = "40vh";
+        photoDisplay.style.width = "30vh";
         insert.style.display = 'none';
         updateBtn.style.display = 'inline-block';
         saveBtn.style.display = 'none';
@@ -740,7 +778,7 @@ function openModal(callback, pointData) {
                 if (pointData.buildingId === selectedBuildingId) {
                     const point = BABYLON.MeshBuilder.CreateSphere(
                         `point_${pointData.id}`, 
-                        {diameter: 0.2}, 
+                        {diameter: 0.5}, 
                         scene
                     );
                     
