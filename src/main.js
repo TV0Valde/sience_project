@@ -8,7 +8,7 @@ import {convertRatioToExpression,GetDistance} from "./functions";
 import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSelect";
 import {fetchAllFormats} from "./formatSelect";
 
-//let divFps = document.getElementById("fps");
+let divFps = document.getElementById("fps");
 let drone ;
 const canvas = document.getElementById('renderCanvas');
 const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, stencil: true});
@@ -216,7 +216,7 @@ const createScene = function(){
         scene.registerBeforeRender(function (){
             let tmp = document.getElementById('model-select').value;
           //  console.log(tmp);
-           // divFps.innerHTML = engine.getFps().toFixed() + " fps";
+            divFps.innerHTML = engine.getFps().toFixed() + " fps";
                 point =  drone.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); 
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix());
@@ -253,7 +253,7 @@ const createScene = function(){
         let existingPoint = await checkExistingPoint(position);
     
         if (!existingPoint) {
-            const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.2 }, scene);
+            const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.5 }, scene);
             point.position = position;
     
             openModal(async (photoData, info, materialName, checkupDate) => {
@@ -461,7 +461,9 @@ function openModal(callback, pointData) {
     
     // Для существующей точки
     if (callback === null) {
-        modalContent.style.height = "60%";
+        modalContent.style.height = '70vh';
+        modalContent.style.width = '25vw';
+        modalContent.style.paddingBottom = '15px';
         insert.style.display = 'none';
         updateBtn.style.display = 'inline-block';
         saveBtn.style.display = 'none';
@@ -470,7 +472,7 @@ function openModal(callback, pointData) {
     }
     // Для новой точки 
     else {
-        modalContent.style.height = "30%";
+        modalContent.style.height = "40%";
         updateBtn.style.display = 'none';
         insert.style.display = 'block';
         addBtn.style.display = 'none';
@@ -740,7 +742,7 @@ function openModal(callback, pointData) {
                 if (pointData.buildingId === selectedBuildingId) {
                     const point = BABYLON.MeshBuilder.CreateSphere(
                         `point_${pointData.id}`, 
-                        {diameter: 0.2}, 
+                        {diameter: 0.5}, 
                         scene
                     );
                     
