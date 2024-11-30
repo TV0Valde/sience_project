@@ -4,7 +4,7 @@
 import * as BABYLON from 'babylonjs';
 import "@babylonjs/loaders/glTF";
 import 'babylonjs-loaders'
-import {convertRatioToExpression,GetDistance} from "./functions";
+import {convertRatioToExpression,GetDistance,calculateDistance, formatDate} from "./functions";
 import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSelect";
 import {fetchAllFormats} from "./formatSelect";
 
@@ -22,6 +22,7 @@ const createScene = function(){
 /**
  * Создание и настройка Камеры
  */
+  //const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
     const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
@@ -245,100 +246,98 @@ const createScene = function(){
         })
     });
 
-   /**
-    * Функция создания точки
-    * @param {*} position Координаты для создания
-    */
-    const createPoint = async (position) => {
-        let existingPoint = await checkExistingPoint(position);
+  /**
+ * Функция создания точки
+ * @param {*} position Координаты для создания
+ */
+  const createPoint = async (position) => {
+    let existingPoint = await checkExistingPoint(position);
     
-        if (!existingPoint) {
-            const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.5 }, scene);
-            point.position = position;
-    
-            openModal(async (photoData, info, materialName, checkupDate) => {
-                point.material = createMaterial(materialName);
-    
+    if (!existingPoint) {
+        const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.5 }, scene);
+        point.position = position;
+
+        openModal(async (newRecord) => {
+            try {
+                // Создание данных для точки
                 const pointData = {
-                    position: point.position.asArray(),
-                    photoData: photoData,
-                    info: info,
-                    materialName: materialName,
-                    model: currentModel,
                     buildingId: selectedBuildingId,
-                    checkupDate : checkupDate
+                    position: position.asArray()
                 };
-    
-                try {
-                    const response = await fetch('http://localhost:5141/api/Points/point', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(pointData)
-                    });
-    
-                    if (!response.ok) throw new Error('Не удалось создать точку');
-    
-                    const createdPoint = await response.json();
-                    
-                    // Обновление названия точки
-                    point.name = `point_${createdPoint.id}`;
-                    
-                    // Сохранение данных о точке 
-                    point.pointData = {
-                        id: createdPoint.id,
-                        photoData: photoData,
-                        info: info,
-                        materialName: materialName,
-                        checkupDate: checkupDate,
-                        position: position.asArray()
-                    };
-    
-                    console.log('Точка создана:', createdPoint);
-                } catch (error) {
-                    console.error('Ошибка при создании:', error);
-                    // Удаление точки, если не удалось создать
-                    point.dispose();
-                }
-            });
-        } else {
-            openModalForExisting(existingPoint);
-        }
-    };
-    
-    /**
-     * Функция для проверки существует ли точка по близости 
-     * @param {*} position Координаты нажатия
-     */
-    async function checkExistingPoint(position) {
-        const response = await fetch(`http://localhost:5141/api/Points/points?x=${position.x}&y=${position.y}&z=${position.z}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' }
-        });
-    
-        if (!response.ok) {
-            console.error('Ошибка при проверке существующих точек:', response.statusText);
-            return true; 
-        }
-    
-        const existingPoints = await response.json();
-        return existingPoints.some(existingPoint => {
-            const distance = calculateDistance(existingPoint.position, position.asArray());
-            return distance < 0.5;
-        });
+
+                // Сначала создаем точку
+                const pointResponse = await fetch('http://localhost:5141/api/Points/point', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pointData)
+                });
+
+                if (!pointResponse.ok) throw new Error('Не удалось создать точку');
+
+                const createdPoint = await pointResponse.json();
+
+                // Создаем запись для точки
+                const pointRecordData = {
+                    photoData: newRecord.photoData,
+                    info: newRecord.info,
+                    materialName: newRecord.materialName,
+                    checkupDate: newRecord.checkupDate,
+                    buildingId: selectedBuildingId,
+                    pointId: createdPoint.id
+                };
+
+                const recordResponse = await fetch(`http://localhost:5141/api/points/${createdPoint.id}/records`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(pointRecordData)
+                });
+
+                if (!recordResponse.ok) throw new Error('Не удалось создать запись точки');
+
+                const createdRecord = await recordResponse.json();
+
+                // Настройка материала точки
+                point.material = createMaterial(newRecord.materialName);
+                
+                // Обновление названия точки
+                point.name = `point_${createdPoint.id}`;
+
+                console.log('Точка создана:', createdPoint);
+                console.log('Запись точки создана:', createdRecord);
+
+            } catch (error) {
+                console.error('Ошибка при создании:', error);
+                point.dispose();
+            }
+        }, null, null);
+
+    } else {
+        openModalForExisting(existingPoint);
     }
-    /**
-     * Функция Расчёта дистанции между точками
-     * @param {*} pos1 Координаты точки 1
-     * @param {*} pos2 Координаты точки 2
-     * @returns Дистанция между точками
-     */
-    function calculateDistance(pos1, pos2) {
-        return Math.sqrt(
-            Math.pow(pos1[0] - pos2[0], 2) +
-            Math.pow(pos1[1] - pos2[1], 2) +
-            Math.pow(pos1[2] - pos2[2], 2)
-        );
+};
+
+/**
+ * Функция для проверки существует ли точка по близости
+ * @param {*} position Координаты нажатия
+ */
+async function checkExistingPoint(position) {
+    const response = await fetch(`http://localhost:5141/api/Points/points?x=${position.x}&y=${position.y}&z=${position.z}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+        console.error('Ошибка при проверке существующих точек:', response.statusText);
+        return true;
     }
+
+    const existingPoints = await response.json();
+    return existingPoints.some(existingPoint => {
+        const distance = calculateDistance(existingPoint.position, position.asArray());
+        return distance < 0.5;
+    });
+}
+   
 
     /**
      * Функция Удаления Точки из базы
@@ -380,26 +379,48 @@ const createScene = function(){
      */
     function onPointSelected(selectedPointId) {
         const selectedMesh = scene.getMeshByName(`point_${selectedPointId}`);
-        
-        if (selectedMesh && selectedMesh.pointData) {
-            openModalForExisting(selectedMesh.pointData);
+    
+        if (selectedMesh && selectedMesh.pointData && selectedMesh.pointRecords) {
+            openModalForExisting(selectedMesh.pointData, selectedMesh.pointRecords);
         } else {
+            // Fetching point data
             fetch(`http://localhost:5141/api/Points/point/${selectedPointId}`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data) {
-                        // Сохраняем данные в меш для будущего использования
-                        if (selectedMesh) {
-                            selectedMesh.pointData = data;
-                        }
-                        openModalForExisting(data);
-                    } else {
-                        console.warn("Point data not found for ID:", selectedPointId);
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch point data: ${response.statusText}`);
                     }
+                    return response.json();
+                })
+                .then(pointData => {
+                    if (!pointData) {
+                        console.warn("Point data not found for ID:", selectedPointId);
+                        return;
+                    }
+    
+                    // Fetching associated records for the point
+                    fetch(`http://localhost:5141/api/points/${selectedPointId}/records`)
+                        .then(recordResponse => {
+                            if (!recordResponse.ok) {
+                                throw new Error(`Failed to fetch records: ${recordResponse.statusText}`);
+                            }
+                            return recordResponse.json();
+                        })
+                        .then(recordsData => {
+                            // Cache the point and records data in the mesh
+                            if (selectedMesh) {
+                                selectedMesh.pointData = pointData;
+                                selectedMesh.pointRecords = recordsData;
+                            }
+    
+                            // Open modal with both point and records data
+                            openModalForExisting(pointData, recordsData);
+                        })
+                        .catch(error => console.error("Error fetching point records:", error));
                 })
                 .catch(error => console.error("Error fetching point data:", error));
         }
     }
+    
     
 /**
  * Функция обработки нажатия курсором на сцену
@@ -416,26 +437,15 @@ scene.onPointerDown = () => {
     }
 };
 
-/**
- * Функция форматирования даты в формат dd.mm.yyyy
- * @param {string} dateString Строка с датой
- * @returns {string} Отформатированная дата
- */
-function formatDate(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
-    return `${day}.${month}.${year}`;
-}
+
 
 /**
  * Функция открытия модального окна
  * @param {*} callback callback-функция
  * @param {*} pointData Данные точки
  */
-function openModal(callback, pointData) {
+function openModal(callback, pointRecord, pointData) {
+    // Получение элементов DOM
     const insert = document.getElementById("insert");
     const modal = document.getElementById("myModal");
     const modalContent = document.getElementById("modal-content");
@@ -453,239 +463,265 @@ function openModal(callback, pointData) {
     const saveBtn = document.getElementById("saveBtn");
     const photoViewer = document.getElementById("photo-viewer");
 
-
-    photoInput.value = '';
-    infoInput.value = '';
-    dateInput.value = '';
-    materialInputs.forEach(input => input.checked = false);
-    
-    // Для существующей точки
-    if (callback === null) {
-        modalContent.style.height = '70vh';
-        modalContent.style.width = '25vw';
-        modalContent.style.paddingBottom = '15px';
-        insert.style.display = 'none';
-        updateBtn.style.display = 'inline-block';
-        saveBtn.style.display = 'none';
-        deleteBtn.style.display = 'inline-block';
-        addBtn.style.display = 'inline-block';
-    }
-    // Для новой точки 
-    else {
-        modalContent.style.height = "40%";
-        updateBtn.style.display = 'none';
-        insert.style.display = 'block';
-        addBtn.style.display = 'none';
-        saveBtn.style.display = 'inline-block';
-        deleteBtn.style.display = 'none';
-        infoDisplay.style.display = 'none';
-        dateDisplay.style.display = 'none';
+    // Сброс полей ввода
+    function resetInputs() {
+        photoInput.value = '';
+        infoInput.value = '';
+        dateInput.value = '';
+        materialInputs.forEach(input => input.checked = false);
+        photoDisplay.src = '';
         photoDisplay.style.display = 'none';
         photoViewer.style.display = 'none';
+        infoDisplay.innerHTML = '';
+        dateDisplay.innerHTML = '';
     }
+    resetInputs();
 
-    // Отображение данных точки если они доступны
-    if (pointData) {
-        if (pointData.photoData) {
-            photoDisplay.src = pointData.photoData;
-            photoDisplay.style.display = 'block';
-            photoDisplay.style.height = "50%";
-            photoDisplay.style.width = "50%";
-            photoViewer.style.display = 'flex';
-        } else {
-            photoDisplay.style.display = 'none';
-            infoDisplay.style.display = 'none';
-            dateDisplay.style.display = 'none';
-            photoViewer.style.display = 'none';
-        }
-        
-        if (pointData.info) {
-            infoDisplay.innerHTML = pointData.info;
-            infoDisplay.style.display = 'block';
-            dateDisplay.innerHTML = `Дата осмотра: ${formatDate(pointData.checkupDate)}`;
-            dateDisplay.style.display = 'block';
-        } else {
-            photoViewer.style.display = 'none';
-            photoDisplay.style.display = 'none';
-            infoDisplay.style.display = 'none';
-            dateDisplay.style.display = 'none';
-        }
-
-        if (pointData.materialName) {
-            const selectedMaterial = Array.from(materialInputs)
-                .find(input => input.value === pointData.materialName);
-            if (selectedMaterial) {
-                selectedMaterial.checked = true;
-            }
-        }
-
-        if (pointData.checkupDate) {
-            dateInput.value = pointData.checkupDate;
-        }
-    }
-
-    /**
-     * Обратчик для нажатия на кнопку удаления Точки
-     */
-    deleteBtn.onclick = async () => {
-        if (pointData && pointData.id) {
-            await deletePoint(pointData.id);
-            modal.style.display = 'none';
-        }
-    };
-
-    /**
-     * Обработчик для нажатия на кнопку Обновления данных
-     */
-    updateBtn.onclick = () => {
-        modalContent.style.height = "30%";
-        insert.style.display = 'block';
-        infoBlock.style.display = 'none';
-        
-        // Заполняем поля формы текущими данными
-        if (pointData) {
-            infoInput.value = pointData.info || '';
-            dateInput.value = pointData.checkupDate || '';
-            if (pointData.materialName) {
-                const materialInput = Array.from(materialInputs)
-                    .find(input => input.value === pointData.materialName);
-                if (materialInput) {
-                    materialInput.checked = true;
-                }
-            }
-        }
-
-        // Перенастраиваем кнопку сохранения для обновления
-        saveBtn.style.display = 'inline-block';
-        deleteBtn.style.display = 'none';
-        saveBtn.onclick = () => {
-            const file = photoInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    updatePointData(pointData.id, reader.result);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                updatePointData(pointData.id, pointData.photoData);
-            }
-        };
-    };
-
-    async function updatePointData(pointId, photoData) {
-        const info = infoInput.value;
-        const selectedMaterial = Array.from(materialInputs).find(input => input.checked);
-        const materialName = selectedMaterial ? selectedMaterial.value : null;
-        const checkupDate = dateInput.value;
-
-        const updatedPointData = {
-            id: pointId,
-            position: pointData.position,
-            photoData: photoData,
-            info: info,
-            materialName: materialName,
-            model: currentModel,
-            buildingId: selectedBuildingId,
-            checkupDate: checkupDate
-        };
-
-        try {
-            const response = await fetch(`http://localhost:5141/api/Points/point/${pointId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedPointData)
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update point');
-            }
-
-            // Обновляем визуальное представление точки
-            const pointMesh = scene.getMeshByName(`point_${pointId}`);
-            if (pointMesh) {
-                pointMesh.material = createMaterial(materialName);
-                pointMesh.pointData = updatedPointData;
-            }
-
-            // Обновляем отображение в модальном окне
-            photoDisplay.src = photoData;
-            photoDisplay.style.display = 'block';
-            infoDisplay.innerHTML = info;
-            infoDisplay.style.display = 'block';
-            
-            // Возвращаем модальное окно в режим просмотра
-            modalContent.style.height = "55%";
+    // Настройка внешнего вида модального окна
+    function configureModalLayout(isExistingPoint) {
+        if (isExistingPoint) {
+            modalContent.style.height = '70vh';
+            modalContent.style.width = '25vw';
+            modalContent.style.paddingBottom = '15px';
             insert.style.display = 'none';
-            infoBlock.style.display = 'block';
             updateBtn.style.display = 'inline-block';
             saveBtn.style.display = 'none';
+            deleteBtn.style.display = 'inline-block';
+            addBtn.style.display = 'inline-block';
+            // Отображение существующих данных
+            if (pointRecord) {
 
-            console.log('Point updated successfully');
-        } catch (error) {
-            console.error('Error updating point:', error);
-            alert('Failed to update point. Please try again.');
+                    photoDisplay.src = pointRecord.photoData;
+                    photoDisplay.style.display = 'block';
+                    photoDisplay.style.height = "20vh";
+                    photoDisplay.style.width = "20vw";
+                    photoViewer.style.display = 'flex';
+
+                    infoDisplay.innerHTML = pointRecord.info;
+                    infoDisplay.style.display = 'block';
+
+                    dateDisplay.innerHTML = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
+                    dateDisplay.style.display = 'block';
+
+                    const selectedMaterial = Array.from(materialInputs)
+                        .find(input => input.value === pointRecord.materialName);
+                    if (selectedMaterial) {
+                        selectedMaterial.checked = true;
+                    }
+
+                // Предзаполнение полей ввода
+                infoInput.value = pointRecord.info || '';
+                dateInput.value = pointRecord.checkupDate || '';
+            }
+        } else {
+            modalContent.style.height = "40vh";
+            updateBtn.style.display = 'none';
+            insert.style.display = 'block';
+            addBtn.style.display = 'none';
+            saveBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'none';
+            infoDisplay.style.display = 'none';
+            dateDisplay.style.display = 'none';
+            photoDisplay.style.display = 'none';
+            photoViewer.style.display = 'none';
         }
     }
-    if (callback) {
-        saveBtn.onclick = () => {
-            const file = photoInput.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = () => {
-                    savePointData(reader.result);
-                };
-                reader.readAsDataURL(file);
-            } else {
-                savePointData(null);
-            }
-        };
+    configureModalLayout(callback === null);
+
+    // Утилита для получения данных файла
+    async function getFileData(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     }
 
-    /**
-     * Обработчик для нажатия на кнопку Сохранения данных
-     */
-    saveBtn.onclick = () => {
+  // Обновление существующей записи
+async function updatePointRecord(photoData) {
+    if (!pointRecord) {
+        console.error('No point record to update');
+        return;
+    }
+
+    pointRecord.info = infoInput.value;
+    pointRecord.checkupDate = dateInput.value;
+    pointRecord.materialName = Array.from(materialInputs).find(input => input.checked)?.value || null;
+    pointRecord.photoData = photoData || pointRecord.photoData;
+
+    try {
+        const response = await fetch(`http://localhost:5141/api/pointRecord/${pointRecord.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(pointRecord)
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update point record');
+        }
+
+        // Обновляем отображение данных в модальном окне без перезагрузки
+        photoDisplay.src = pointRecord.photoData;
+        photoDisplay.style.display = 'block';
+        photoDisplay.style.height = "20vh";
+        photoDisplay.style.width = "20vw";
+        photoViewer.style.display = 'flex';
+
+        infoDisplay.innerHTML = pointRecord.info;
+        infoDisplay.style.display = 'block';
+
+        dateDisplay.innerHTML = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
+        dateDisplay.style.display = 'block';
+
+        // Возвращаем модальное окно в режим просмотра
+        insert.style.display = 'none';
+        infoBlock.style.display = 'block';
+        modalContent.style.height = '70vh';
+        saveBtn.style.display = 'none';
+        updateBtn.style.display = 'inline-block';
+        deleteBtn.style.display = 'inline-block';
+        addBtn.style.display = 'inline-block';
+
+        console.log('Point record updated successfully');
+    } catch (error) {
+        console.error('Error updating point record:', error);
+        alert('Failed to update point record. Please try again.');
+    }
+}
+
+// Обработчик кнопки обновления
+updateBtn.onclick = () => {
+    modalContent.style.height = "30vh";
+    insert.style.display = 'block';
+    infoBlock.style.display = 'none';
+    
+    // Скрываем display-блоки
+    infoDisplay.style.display = 'none';
+    dateDisplay.style.display = 'none';
+    photoDisplay.style.display = 'none';
+    photoViewer.style.display = 'none';
+
+    // Перенастраиваем кнопку сохранения для обновления
+    saveBtn.style.display = 'inline-block';
+    deleteBtn.style.display = 'none';
+    saveBtn.onclick = async () => {
         const file = photoInput.files[0];
         if (file) {
             const reader = new FileReader();
             reader.onload = () => {
-                savePointData(reader.result);
+                updatePointRecord(reader.result);
             };
             reader.readAsDataURL(file);
         } else {
-            savePointData(pointData ? pointData.photoData : null);
+            updatePointRecord(null);
+        }
+    };
+};
+    // Обработчик кнопки удаления
+    deleteBtn.onclick = async () => {
+        if (pointData && pointData.pointId) {
+            try {
+                // Вызов функции удаления точки
+                await deletePoint(pointData.pointId);
+    
+                // Закрываем модальное окно после успешного удаления
+                modal.style.display = 'none';
+    
+                // Удаление точки со сцены
+                const pointMesh = scene.getMeshByName(`point_${pointData.pointId}`);
+                if (pointMesh) {
+                    scene.removeMesh(pointMesh);
+                }
+    
+                console.log("Point successfully deleted.");
+                resetInputs();
+            } catch (error) {
+                console.error("Error deleting point:", error);
+                alert("Failed to delete the point. Please try again.");
+            }
+        } else {
+            console.error("Point ID is missing or undefined.");
+            alert("Point ID is required to delete the point.");
         }
     };
 
-    /**
-     * Функция сохранения данных точки
-     * @param {*} photoData Информация о фото
-     */
-    function savePointData(photoData) {
-        const info = infoInput.value;
-        const selectedMaterial = Array.from(materialInputs).find(input => input.checked);
-        const materialName = selectedMaterial ? selectedMaterial.value : null;
-        const checkupDate = dateInput.value;
+    // Сохранение новой записи
+    saveBtn.onclick = async () => {
+        const file = photoInput.files[0];
+        const photoData = file ? await getFileData(file) : null;
+
+        const newRecord = {
+            info: infoInput.value,
+            checkupDate: dateInput.value,
+            materialName: Array.from(materialInputs).find(input => input.checked)?.value || null,
+            photoData: photoData,
+            buildingId: selectedBuildingId
+        };
 
         if (callback) {
-            callback(photoData, info, materialName, checkupDate);
+            callback(newRecord);
         }
 
-        infoBlock.style.display = 'block';
         modal.style.display = 'none';
+        resetInputs();
+    };
+
+    addBtn.onclick = async () => {
+        resetInputs();
+        modalContent.style.height = "30vh";
+        insert.style.display = 'block';
+        infoBlock.style.display = 'none';
     }
 
+    // Показываем модальное окно
     modal.style.display = 'flex';
 }
 
-    
-    /**
-     * Функция открытия модального окна для существующих точек
-     * @param {*} existingPoint 
-     */
-    function openModalForExisting(existingPoint) {
-        openModal(null, existingPoint);
+/**
+ * Функция открытия модального окна для существующих точек
+ * @param {Object} existingPoint Данные точки
+ * @param {Object} records Связанные записи
+ */
+async function openModalForExisting(existingPoint) {
+    // Проверяем наличие необходимых данных
+    if (!existingPoint || !existingPoint.id) {
+        console.error('Invalid existing point data');
+        return;
     }
+
+    try {
+        // Создаем объект pointData с pointId
+        const pointData = {
+            pointId: existingPoint.id
+        };
+
+        const recordResponse = await fetch(`http://localhost:5141/api/points/${pointData.pointId}/records`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!recordResponse.ok) {
+            throw new Error('Не удалось получить записи точки');
+        }
+
+        const recordData = await recordResponse.json();
+
+        // Проверяем, есть ли записи для этой точки
+        if (recordData.length === 0) {
+            console.warn('Нет записей для данной точки');
+            return;
+        }
+
+        // Используем первую запись (или можете выбрать логику, если несколько записей)
+        openModal(null, recordData[0], pointData);
+
+    } catch (error) {
+        console.error('Ошибка при получении записей точки:', error);
+        alert('Не удалось загрузить данные точки');
+    }
+}
+
     
     /**
      * Функция создания материала точки
@@ -733,11 +769,25 @@ function openModal(callback, pointData) {
         try {
             console.log("Загрузка точек для здания:", selectedBuildingId);
             
-            const response = await fetch(`http://localhost:5141/api/Points/points/byBuilding/${selectedBuildingId}`);
-            if(!response.ok) throw new Error('Не удалось загрузить точки');
+            const pointsResponse = await fetch(`http://localhost:5141/api/Points/points/byBuilding/${selectedBuildingId}`);
+            if (!pointsResponse.ok) throw new Error('Не удалось загрузить точки');
             
-            const pointsData = await response.json();
+            const pointsData = await pointsResponse.json();
             
+            // Параллельная загрузка записей для всех точек
+            const pointRecordsPromises = pointsData.map(async (pointData) => {
+                const recordsResponse = await fetch(`http://localhost:5141/api/points/${pointData.id}/records`);
+                if (!recordsResponse.ok) {
+                    console.warn(`Не удалось загрузить записи для точки ${pointData.id}`);
+                    return { pointId: pointData.id, records: [] };
+                }
+                const records = await recordsResponse.json();
+                return { pointId: pointData.id, records };
+            });
+    
+            const pointRecords = await Promise.all(pointRecordsPromises);
+            const pointRecordsMap = new Map(pointRecords.map(pr => [pr.pointId, pr.records]));
+    
             pointsData.forEach(pointData => {
                 if (pointData.buildingId === selectedBuildingId) {
                     const point = BABYLON.MeshBuilder.CreateSphere(
@@ -746,6 +796,7 @@ function openModal(callback, pointData) {
                         scene
                     );
                     
+                    // Преобразование позиции
                     if (Array.isArray(pointData.position)) {
                         point.position = new BABYLON.Vector3(
                             pointData.position[0],
@@ -760,9 +811,22 @@ function openModal(callback, pointData) {
                         );
                     }
                     
-                    point.material = createMaterial(pointData.materialName);
+                    // Получаем записи для точки
+                    const pointRecordsForPoint = pointRecordsMap.get(pointData.id) || [];
                     
+                    // Используем последнюю запись для определения материала и других свойств
+                    const latestRecord = pointRecordsForPoint.length > 0 
+                        ? pointRecordsForPoint[pointRecordsForPoint.length - 1] 
+                        : null;
+                    
+                    // Установка материала (используем материал из последней записи)
+                    point.material = latestRecord && latestRecord.materialName 
+                        ? createMaterial(latestRecord.materialName) 
+                        : createDefaultMaterial();
+                    
+                    // Сохраняем полные данные точки и ее записей
                     point.pointData = pointData;
+                    point.pointRecords = pointRecordsForPoint;
                 }
             });
     
@@ -771,6 +835,12 @@ function openModal(callback, pointData) {
         }
     }
     
+    // Вспомогательная функция для создания материала по умолчанию
+    function createDefaultMaterial() {
+        const defaultMaterial = new BABYLON.StandardMaterial("defaultPointMaterial", scene);
+        defaultMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5); // Серый цвет
+        return defaultMaterial;
+    }
     /**
      * Функция загрузки и Отображения модель на сцене
      * @param {*} modelPath Путь до модели
