@@ -246,7 +246,7 @@ const createScene = function(){
         })
     });
 
-  /**
+/**
  * Функция создания точки
  * @param {*} position Координаты для создания
  */
@@ -462,6 +462,50 @@ function openModal(callback, pointRecord, pointData) {
     const updateBtn = document.getElementById('updateBtn');
     const saveBtn = document.getElementById("saveBtn");
     const photoViewer = document.getElementById("photo-viewer");
+    const prevBtn = document.getElementById("previosly");
+    const nextBtn = document.getElementById("next");
+
+    let currentRecords = [];
+    let currentRecordIndex = 0;
+
+    function updateRecordDisplay(record) {
+        photoDisplay.src = record.photoData || '';
+        photoDisplay.style.display = record.photoData ? 'block' : 'none';
+        photoDisplay.style.height = "20vh";
+        photoDisplay.style.width = "20vw";
+        photoViewer.style.display = record.photoData ? 'flex' : 'none';
+
+        infoDisplay.innerHTML = record.info || '';
+        infoDisplay.style.display = 'block';
+
+        dateDisplay.innerHTML = `Дата осмотра: ${formatDate(record.checkupDate)}`;
+        dateDisplay.style.display = 'block';
+
+        const selectedMaterial = Array.from(materialInputs)
+            .find(input => input.value === record.materialName);
+        if (selectedMaterial) {
+            selectedMaterial.checked = true;
+        }
+
+        // Управление кнопками навигации
+        prevBtn.style.display = currentRecordIndex > 0 ? 'inline-block' : 'none';
+        nextBtn.style.display = currentRecordIndex < currentRecords.length - 1 ? 'inline-block' : 'none';
+    }
+
+    // Обработчики для навигации между записями
+    prevBtn.onclick = () => {
+        if (currentRecordIndex > 0) {
+            currentRecordIndex--;
+            updateRecordDisplay(currentRecords[currentRecordIndex]);
+        }
+    };
+
+    nextBtn.onclick = () => {
+        if (currentRecordIndex < currentRecords.length - 1) {
+            currentRecordIndex++;
+            updateRecordDisplay(currentRecords[currentRecordIndex]);
+        }
+    };
 
     // Сброс полей ввода
     function resetInputs() {
@@ -528,6 +572,31 @@ function openModal(callback, pointRecord, pointData) {
     }
     configureModalLayout(callback === null);
 
+    if (pointRecord && pointData) {
+        // Получаем все записи для точки
+        fetch(`http://localhost:5141/api/points/${pointData.pointId}/records`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Не удалось получить записи точки');
+                }
+                return response.json();
+            })
+            .then(records => {
+                currentRecords = records;
+                currentRecordIndex = records.findIndex(r => r.id === pointRecord.id);
+                
+                // Если индекс не найден, устанавливаем на первую запись
+                if (currentRecordIndex === -1) {
+                    currentRecordIndex = 0;
+                }
+
+                updateRecordDisplay(currentRecords[currentRecordIndex]);
+            })
+            .catch(error => {
+                console.error('Ошибка при получении записей:', error);
+            });
+    }
+
     // Утилита для получения данных файла
     async function getFileData(file) {
         return new Promise((resolve, reject) => {
@@ -536,6 +605,60 @@ function openModal(callback, pointRecord, pointData) {
             reader.onerror = reject;
             reader.readAsDataURL(file);
         });
+    }
+
+    async function addNewPointRecord(pointId) {
+        const file = photoInput.files[0];
+        const photoData = file ? await getFileData(file) : null;
+    
+        const pointRecordData = {
+            photoData: photoData,
+            info: infoInput.value,
+            materialName: Array.from(materialInputs).find(input => input.checked)?.value || null,
+            checkupDate: dateInput.value,
+            buildingId: selectedBuildingId,
+            pointId: pointId
+        };
+    
+        try {
+            const response = await fetch(`http://localhost:5141/api/points/${pointId}/records`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(pointRecordData)
+            });
+    
+            if (!response.ok) {
+                throw new Error('Не удалось добавить новую запись');
+            }
+    
+            const createdRecord = await response.json();
+            console.log('Новая запись добавлена:', createdRecord);
+    
+            // Обновление списка записей в модальном окне
+            const recordsResponse = await fetch(`http://localhost:5141/api/points/${pointId}/records`);
+            if (recordsResponse.ok) {
+                const updatedRecords = await recordsResponse.json();
+                
+                // Здесь можно реализовать логику обновления списка записей в UI
+                // Например, добавление новой записи в список или перезагрузка списка
+            }
+    
+            // Сброс полей ввода
+            resetInputs();
+            
+            // Закрытие режима ввода
+            insert.style.display = 'none';
+            infoBlock.style.display = 'block';
+            modalContent.style.height = '70vh';
+            saveBtn.style.display = 'none';
+            updateBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'inline-block';
+            addBtn.style.display = 'inline-block';
+    
+        } catch (error) {
+            console.error('Ошибка при добавлении новой записи:', error);
+            alert('Не удалось добавить новую запись. Пожалуйста, попробуйте снова.');
+        }
     }
 
   // Обновление существующей записи
@@ -668,10 +791,20 @@ updateBtn.onclick = () => {
     };
 
     addBtn.onclick = async () => {
+      if(pointData && pointData.pointId){
         resetInputs();
+
         modalContent.style.height = "30vh";
-        insert.style.display = 'block';
-        infoBlock.style.display = 'none';
+        insert.style.display = "block";
+        infoBlock.style.display = "none";
+
+        saveBtn.style.display = "inline-block";
+        saveBtn.onclick = () => addNewPointRecord(pointData.pointId);
+
+        updateBtn.style.display = 'none';
+        deleteBtn.style.display = 'none';
+        addBtn.style.display = 'none';
+      }
     }
 
     // Показываем модальное окно
@@ -683,7 +816,7 @@ updateBtn.onclick = () => {
  * @param {Object} existingPoint Данные точки
  * @param {Object} records Связанные записи
  */
-async function openModalForExisting(existingPoint) {
+async function openModalForExisting(existingPoint, addRecordCallback) {
     // Проверяем наличие необходимых данных
     if (!existingPoint || !existingPoint.id) {
         console.error('Invalid existing point data');
@@ -708,13 +841,13 @@ async function openModalForExisting(existingPoint) {
         const recordData = await recordResponse.json();
 
         // Проверяем, есть ли записи для этой точки
-        if (recordData.length === 0) {
-            console.warn('Нет записей для данной точки');
-            return;
+        if (recordData.length > 0) {
+            // Если есть записи - открываем модальное окно с последней записью
+            openModal(null, recordData[0], pointData);
+        } else {
+            // Если записей нет - открываем модальное окно для добавления новой записи
+            openModal(addRecordCallback, null, pointData);
         }
-
-        // Используем первую запись (или можете выбрать логику, если несколько записей)
-        openModal(null, recordData[0], pointData);
 
     } catch (error) {
         console.error('Ошибка при получении записей точки:', error);

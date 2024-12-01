@@ -135,11 +135,11 @@ button{
     display: flex;
     align-items: center;
 }
-#left-arrow{
+#previosly{
     height: 50px;
     width: 50px;
 }
-#right-arrow{
+#next{
     height: 50px;
     width: 50px;
 }
