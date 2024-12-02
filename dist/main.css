@@ -144,3 +144,14 @@ button{
     width: 50px;
 }
 
+control_button.disabled {
+    opacity: 0.5; /* Полупрозрачность */
+    cursor: not-allowed; /* Курсор запрета */
+    filter: grayscale(100%); /* Чёрно-белый цвет */
+  }
+
+  img.disabled {
+    filter: brightness(50%) grayscale(100%);
+  }
+  
+  

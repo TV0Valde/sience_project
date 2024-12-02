@@ -487,25 +487,37 @@ function openModal(callback, pointRecord, pointData) {
             selectedMaterial.checked = true;
         }
 
-        // Управление кнопками навигации
-        prevBtn.style.display = currentRecordIndex > 0 ? 'inline-block' : 'none';
-        nextBtn.style.display = currentRecordIndex < currentRecords.length - 1 ? 'inline-block' : 'none';
+
+       // Управление кнопками навигации
+    if (currentRecordIndex > 0) {
+        prevBtn.classList.remove('disabled');
+    } else {
+        prevBtn.classList.add('disabled');
+    }
+
+    if (currentRecordIndex < currentRecords.length - 1) {
+        nextBtn.classList.remove('disabled');
+    } else {
+        nextBtn.classList.add('disabled');
+    }
     }
 
     // Обработчики для навигации между записями
     prevBtn.onclick = () => {
-        if (currentRecordIndex > 0) {
+        if (!prevBtn.classList.contains('disabled')) {
             currentRecordIndex--;
             updateRecordDisplay(currentRecords[currentRecordIndex]);
         }
     };
-
+    
     nextBtn.onclick = () => {
-        if (currentRecordIndex < currentRecords.length - 1) {
+        if (!nextBtn.classList.contains('disabled')) {
             currentRecordIndex++;
             updateRecordDisplay(currentRecords[currentRecordIndex]);
         }
     };
+    
+    
 
     // Сброс полей ввода
     function resetInputs() {
