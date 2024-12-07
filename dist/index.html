@@ -11,7 +11,7 @@
 <body>
 <canvas id="renderCanvas">
 </canvas>
-<!--<div id ="aboutBuilding"> <img id="quesitonMark" src="assets/images/interface/aboutBuilding.svg" alt="Информация о здании"/></div>-->
+<div id ="aboutBuilding"><img id="quesitonMark" src="assets/images/interface/aboutBuilding.svg" alt="Информация о здании"/></div>
 <div id="distance"></div>
 <div id="fps">0</div>
 <div id="settingPanel">
@@ -24,7 +24,7 @@
   <select name="format" id="format-select"> 
   </select>
 </div>
-  <div id="myModal" class="modal">
+  <div id="pointModal" class="modal">
   <div class="modal-content" id="modal-content" >
       <span class="close">&times;</span>
       <span id="insert">
@@ -64,7 +64,18 @@
   </div>
   </div>
 
-
+  <div id="infoModal" class="modal">
+    <div class="modal-content" id="infoModal-content" >
+        <span class="close">&times;</span>
+        <div> Информация об объекте:</div>
+        <div class="building_info_container">
+        <div id="project_designation">Обозначение проекта: </div>
+        <div id="project_name">Наименование проекта: </div>
+        <div id="project_stage">Стадия: </div>
+        <div id="project_adress">Адрес участка:</div>
+        </div>
+    </div>
+    </div>
 
 <script src="/dist/bundle.js">
 </script>

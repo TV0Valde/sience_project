@@ -257,7 +257,7 @@ const createScene = function(){
         const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.5 }, scene);
         point.position = position;
 
-        openModal(async (newRecord) => {
+        openModalforPoint(async (newRecord) => {
             try {
                 // Создание данных для точки
                 const pointData = {
@@ -266,7 +266,7 @@ const createScene = function(){
                 };
 
                 // Сначала создаем точку
-                const pointResponse = await fetch('http://localhost:5141/api/Points/point', {
+                const pointResponse = await fetch('http://localhost:5141/api/point', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(pointData)
@@ -286,7 +286,7 @@ const createScene = function(){
                     pointId: createdPoint.id
                 };
 
-                const recordResponse = await fetch(`http://localhost:5141/api/points/${createdPoint.id}/records`, {
+                const recordResponse = await fetch(`http://localhost:5141/api/point/${createdPoint.id}/records`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(pointRecordData)
@@ -321,7 +321,7 @@ const createScene = function(){
  * @param {*} position Координаты нажатия
  */
 async function checkExistingPoint(position) {
-    const response = await fetch(`http://localhost:5141/api/Points/points?x=${position.x}&y=${position.y}&z=${position.z}`, {
+    const response = await fetch(`http://localhost:5141/api/points?x=${position.x}&y=${position.y}&z=${position.z}`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
     });
@@ -345,7 +345,7 @@ async function checkExistingPoint(position) {
      */
     async function deletePoint(pointId) {
         try {
-            const response = await fetch(`http://localhost:5141/api/Points/point/${pointId}`, {
+            const response = await fetch(`http://localhost:5141/api/point/${pointId}`, {
                 method: 'DELETE',
             });
     
@@ -384,7 +384,7 @@ async function checkExistingPoint(position) {
             openModalForExisting(selectedMesh.pointData, selectedMesh.pointRecords);
         } else {
             // Fetching point data
-            fetch(`http://localhost:5141/api/Points/point/${selectedPointId}`)
+            fetch(`http://localhost:5141/api/point/${selectedPointId}`)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`Failed to fetch point data: ${response.statusText}`);
@@ -398,7 +398,7 @@ async function checkExistingPoint(position) {
                     }
     
                     // Fetching associated records for the point
-                    fetch(`http://localhost:5141/api/points/${selectedPointId}/records`)
+                    fetch(`http://localhost:5141/api/point/${selectedPointId}/records`)
                         .then(recordResponse => {
                             if (!recordResponse.ok) {
                                 throw new Error(`Failed to fetch records: ${recordResponse.statusText}`);
@@ -437,6 +437,66 @@ scene.onPointerDown = () => {
     }
 };
 
+document.addEventListener('DOMContentLoaded', () => {
+    // Получаем элементы модального окна и кнопки
+    const infoModal = document.getElementById('infoModal');
+    const aboutBuildingDiv = document.getElementById('aboutBuilding');
+    const modalContent = document.getElementById("infoModal-content");
+
+    // Элементы для вставки данных
+    const projectDesignationDiv = document.getElementById('project_designation');
+    const projectNameDiv = document.getElementById('project_name');
+    const projectStageDiv = document.getElementById('project_stage');
+    const projectAddressDiv = document.getElementById('project_adress');
+
+    if (!infoModal || !aboutBuildingDiv || !modalContent) {
+        console.error("Один из элементов не найден в DOM.");
+        return;
+    }
+
+    // Функция для открытия модального окна с данными
+    aboutBuildingDiv.addEventListener('click', function () {
+        // Выполняем fetch-запрос
+        fetch(`http://localhost:5141/api/buildingInfo/byBuilding/${selectedBuildingId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Не удалось получить данные.');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Заполняем данные в модальное окно
+                projectDesignationDiv.textContent = `Обозначение проекта: ${data.projectDesignation || 'Нет данных'}`;
+                projectNameDiv.textContent = `Наименование проекта: ${data.projectName || 'Нет данных'}`;
+                projectStageDiv.textContent = `Стадия: ${data.projectStage || 'Нет данных'}`;
+                projectAddressDiv.textContent = `Адрес участка: ${data.projectAddress || 'Нет данных'}`;
+                
+                // Отображаем модальное окно
+                infoModal.style.display = 'flex';
+                modalContent.style.height = '70vh';
+                modalContent.style.width = '25vw';
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Ошибка загрузки данных');
+            });
+    });
+
+    // Кнопка закрытия модального окна
+    const closeInfoModalBtn = document.querySelector('#infoModal .close');
+    if (closeInfoModalBtn) {
+        closeInfoModalBtn.addEventListener('click', () => {
+            infoModal.style.display = 'none';
+        });
+    }
+
+    // Дополнительно: закрытие модального окна при клике вне его области
+    window.addEventListener('click', function (event) {
+        if (event.target == infoModal) {
+            infoModal.style.display = 'none';
+        }
+    });
+});
 
 
 /**
@@ -444,10 +504,10 @@ scene.onPointerDown = () => {
  * @param {*} callback callback-функция
  * @param {*} pointData Данные точки
  */
-function openModal(callback, pointRecord, pointData) {
+function openModalforPoint(callback, pointRecord, pointData) {
     // Получение элементов DOM
     const insert = document.getElementById("insert");
-    const modal = document.getElementById("myModal");
+    const pointModal = document.getElementById("pointModal");
     const modalContent = document.getElementById("modal-content");
     const infoBlock = document.getElementById('info');
     const dateInput = document.getElementById('date');
@@ -471,7 +531,7 @@ function openModal(callback, pointRecord, pointData) {
     function updateRecordDisplay(record) {
         photoDisplay.src = record.photoData || '';
         photoDisplay.style.display = record.photoData ? 'block' : 'none';
-        photoDisplay.style.height = "20vh";
+        photoDisplay.style.height = "50vh";
         photoDisplay.style.width = "20vw";
         photoViewer.style.display = record.photoData ? 'flex' : 'none';
 
@@ -586,7 +646,7 @@ function openModal(callback, pointRecord, pointData) {
 
     if (pointRecord && pointData) {
         // Получаем все записи для точки
-        fetch(`http://localhost:5141/api/points/${pointData.pointId}/records`)
+        fetch(`http://localhost:5141/api/point/${pointData.pointId}/records`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Не удалось получить записи точки');
@@ -633,7 +693,7 @@ function openModal(callback, pointRecord, pointData) {
         };
     
         try {
-            const response = await fetch(`http://localhost:5141/api/points/${pointId}/records`, {
+            const response = await fetch(`http://localhost:5141/api/point/${pointId}/records`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(pointRecordData)
@@ -647,7 +707,7 @@ function openModal(callback, pointRecord, pointData) {
             console.log('Новая запись добавлена:', createdRecord);
     
             // Обновление списка записей в модальном окне
-            const recordsResponse = await fetch(`http://localhost:5141/api/points/${pointId}/records`);
+            const recordsResponse = await fetch(`http://localhost:5141/api/point/${pointId}/records`);
             if (recordsResponse.ok) {
                 const updatedRecords = await recordsResponse.json();
                 
@@ -761,7 +821,7 @@ updateBtn.onclick = () => {
                 await deletePoint(pointData.pointId);
     
                 // Закрываем модальное окно после успешного удаления
-                modal.style.display = 'none';
+                pointModal.style.display = 'none';
     
                 // Удаление точки со сцены
                 const pointMesh = scene.getMeshByName(`point_${pointData.pointId}`);
@@ -798,7 +858,7 @@ updateBtn.onclick = () => {
             callback(newRecord);
         }
 
-        modal.style.display = 'none';
+        pointModal.style.display = 'none';
         resetInputs();
     };
 
@@ -820,7 +880,7 @@ updateBtn.onclick = () => {
     }
 
     // Показываем модальное окно
-    modal.style.display = 'flex';
+    pointModal.style.display = 'flex';
 }
 
 /**
@@ -841,7 +901,7 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
             pointId: existingPoint.id
         };
 
-        const recordResponse = await fetch(`http://localhost:5141/api/points/${pointData.pointId}/records`, {
+        const recordResponse = await fetch(`http://localhost:5141/api/point/${pointData.pointId}/records`, {
             method: 'GET',
             headers: { 'Content-Type': 'application/json' }
         });
@@ -855,10 +915,10 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         // Проверяем, есть ли записи для этой точки
         if (recordData.length > 0) {
             // Если есть записи - открываем модальное окно с последней записью
-            openModal(null, recordData[0], pointData);
+            openModalforPoint(null, recordData[0], pointData);
         } else {
             // Если записей нет - открываем модальное окно для добавления новой записи
-            openModal(addRecordCallback, null, pointData);
+            openModalforPoint(addRecordCallback, null, pointData);
         }
 
     } catch (error) {
@@ -896,12 +956,11 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         return material;
     }
     
-    
-    const modal = document.getElementById('myModal');
-    const closeModalBtn = document.querySelector('.close');
-    if (modal && closeModalBtn) {
-        closeModalBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
+    const closePointModalBtn = document.querySelector('#pointModal .close');
+    if (pointModal && closePointModalBtn) {
+        closePointModalBtn.addEventListener('click', () => {
+            pointModal.style.display = 'none';
+            
         });
     }
 
@@ -914,7 +973,7 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         try {
             console.log("Загрузка точек для здания:", selectedBuildingId);
             
-            const pointsResponse = await fetch(`http://localhost:5141/api/Points/points/byBuilding/${selectedBuildingId}`);
+            const pointsResponse = await fetch(`http://localhost:5141/api/points/byBuilding/${selectedBuildingId}`);
             if (!pointsResponse.ok) throw new Error('Не удалось загрузить точки');
             
             const pointsData = await pointsResponse.json();
