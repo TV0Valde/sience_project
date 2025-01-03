@@ -3,7 +3,7 @@ export let selectedBuildingId = null; // Экспортируем ID выбра�
 
 export async function fetchAllBuildings() {
     try {
-        const response = await fetch('http://localhost:5141/api/Building/building', {
+        const response = await fetch('http://localhost:5141/api/building', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
