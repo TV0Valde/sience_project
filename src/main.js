@@ -78,7 +78,7 @@ const createScene = function(){
 /**
  * Создание, загрузка и настройка модели БПЛА
  */
-        const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
+        const fly = BABYLON.SceneLoader.ImportMesh("", "http://localhost:9000/assets/models/models/","drone.glb", scene, function (newMeshes) {
             drone = newMeshes[0];
             
         drone.rotationQuaternion = null;
@@ -438,65 +438,198 @@ scene.onPointerDown = () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Получаем элементы модального окна и кнопки
-    const infoModal = document.getElementById('infoModal');
     const aboutBuildingDiv = document.getElementById('aboutBuilding');
-    const modalContent = document.getElementById("infoModal-content");
 
-    // Элементы для вставки данных
-    const projectDesignationDiv = document.getElementById('project_designation');
-    const projectNameDiv = document.getElementById('project_name');
-    const projectStageDiv = document.getElementById('project_stage');
-    const projectAddressDiv = document.getElementById('project_adress');
-
-    if (!infoModal || !aboutBuildingDiv || !modalContent) {
-        console.error("Один из элементов не найден в DOM.");
+    if (!aboutBuildingDiv) {
+        console.error("Элемент aboutBuilding не найден в DOM.");
         return;
     }
 
-    // Функция для открытия модального окна с данными
-    aboutBuildingDiv.addEventListener('click', function () {
-        // Выполняем fetch-запрос
-        fetch(`http://localhost:5141/api/buildingInfo/byBuilding/${selectedBuildingId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Не удалось получить данные.');
-                }
-                return response.json();
-            })
-            .then(data => {
-                // Заполняем данные в модальное окно
-                projectDesignationDiv.textContent = `Обозначение проекта: ${data.projectDesignation || 'Нет данных'}`;
-                projectNameDiv.textContent = `Наименование проекта: ${data.projectName || 'Нет данных'}`;
-                projectStageDiv.textContent = `Стадия: ${data.projectStage || 'Нет данных'}`;
-                projectAddressDiv.textContent = `Адрес участка: ${data.projectAddress || 'Нет данных'}`;
-                
-                // Отображаем модальное окно
-                infoModal.style.display = 'flex';
-                modalContent.style.height = '70vh';
-                modalContent.style.width = '25vw';
-            })
-            .catch(error => {
-                console.error('Ошибка:', error);
-                alert('Ошибка загрузки данных');
-            });
-    });
-
-    // Кнопка закрытия модального окна
-    const closeInfoModalBtn = document.querySelector('#infoModal .close');
-    if (closeInfoModalBtn) {
-        closeInfoModalBtn.addEventListener('click', () => {
-            infoModal.style.display = 'none';
-        });
-    }
-
-    // Дополнительно: закрытие модального окна при клике вне его области
-    window.addEventListener('click', function (event) {
-        if (event.target == infoModal) {
-            infoModal.style.display = 'none';
-        }
+    aboutBuildingDiv.addEventListener('click', () => {
+        openInfoModal();
     });
 });
+
+async function loadBuildingInfo() {
+    console.log("Загрузка информации для здания:", selectedBuildingId);
+    try {
+        const response = await fetch(`http://localhost:5141/api/buildingInfo/byBuilding/${selectedBuildingId}`);
+        if (!response.ok) throw new Error('Не удалось загрузить данные здания');
+        const data = await response.json();
+        console.log("Загруженные данные здания:", data);
+        return data;
+    } catch (error) {
+        console.error("Ошибка загрузки данных здания:", error);
+        return null;
+    }
+}
+
+async function openInfoModal() {
+    const infoModal = document.getElementById('infoModal');
+    const modalContent = document.getElementById('infoModal-content');
+    const projectDesignationInput = document.getElementById('project_designation');
+    const projectNameInput = document.getElementById('project_name');
+    const projectStageInput = document.getElementById('project_stage');
+    const projectAddressInput = document.getElementById('project_adress');
+    const buildingInfoBlock = document.getElementById('building_info_container');
+    const saveButton = document.getElementById('infoModal_saveBtn');
+    const deleteButton = document.getElementById('infoModal_deleteBtn');
+    const updateButton = document.getElementById('infoModal_updateBtn');
+    const closeInfoModalBtn = document.querySelector('#infoModal .close');
+    const buildingInfoDisplay = document.getElementById('buildingInfoDisplay');
+    const projectDesignationDisplay = document.getElementById('buildingInfoDisplay_project_designation');
+    const projectNameDisplay = document.getElementById('buildingInfoDisplay_project_name');
+    const projectStageDisplay = document.getElementById('buildingInfoDisplay_project_stage');
+    const projectAddressDisplay = document.getElementById('buildingInfoDisplay_project_adress');
+
+    let isEditing = false; // Флаг для режима редактирования
+    let currentRecordId = null; // ID текущей записи
+
+    if (!infoModal || !modalContent) {
+        console.error("Не удалось найти модальное окно или его содержимое.");
+        return;
+    }
+
+    // Сброс полей ввода
+    function resetInputs() {
+        projectDesignationInput.value = '';
+        projectNameInput.value = '';
+        projectStageInput.value = '';
+        projectAddressInput.value = '';
+    }
+
+    // Переключение в режим редактирования
+    function switchToEditMode() {
+        isEditing = true;
+        buildingInfoDisplay.style.display = 'none';
+        buildingInfoBlock.style.display = 'flex';
+        saveButton.style.display = 'inline-block';
+        deleteButton.style.display = 'none';
+        updateButton.style.display = 'none';
+    }
+
+    // Переключение в режим просмотра
+    function switchToViewMode() {
+        isEditing = false;
+        buildingInfoDisplay.style.display = 'block';
+        buildingInfoBlock.style.display = 'none';
+        saveButton.style.display = 'none';
+        deleteButton.style.display = 'inline-block';
+        updateButton.style.display = 'inline-block';
+        projectDesignationDisplay.style.display = `block`;
+        projectNameDisplay.style.display = `block`;
+        projectStageDisplay.style.display = `block`;
+        projectAddressDisplay.style.display = `block`;
+    }
+
+    // Загрузка данных объекта
+    const buildingData = await loadBuildingInfo();
+
+    if (buildingData) {
+        // Если запись существует, заполняем поля и отображаем данные
+        currentRecordId = buildingData.id;
+        projectDesignationInput.value = buildingData.projectDesignation || '';
+        projectNameInput.value = buildingData.projectName || '';
+        projectStageInput.value = buildingData.stage || '';
+        projectAddressInput.value = buildingData.areaAdress || '';
+
+        projectDesignationDisplay.textContent = `Обозначение проекта: ${buildingData.projectDesignation}`;
+        projectNameDisplay.textContent = `Наименование проекта: ${buildingData.projectName}`;
+        projectStageDisplay.textContent = `Стадия проекта: ${buildingData.stage}`;
+        projectAddressDisplay.textContent = `Адрес участка: ${buildingData.areaAdress}`;
+
+        switchToViewMode();
+
+        // Привязка кнопки редактирования
+        updateButton.onclick = () => {
+            switchToEditMode();
+        };
+
+        // Привязка кнопки удаления
+        deleteButton.onclick = () => deleteBuildingInfo(currentRecordId);
+    } else {
+        // Если записи нет, переключаемся в режим создания
+        resetInputs();
+        currentRecordId = null;
+        switchToEditMode();
+    }
+
+    // Отображение модального окна
+    infoModal.style.display = 'flex';
+    modalContent.style.height = '35vh';
+    modalContent.style.width = '20vw';
+
+    // Функция сохранения (создание или обновление)
+    async function saveBuildingInfo() {
+        const newRecord = {
+            id:currentRecordId, // Добавляем ID записи (null, если создание)
+            projectDesignation: projectDesignationInput.value,
+            projectName: projectNameInput.value,
+            stage: projectStageInput.value,
+            areaAdress: projectAddressInput.value,
+            buildingId: selectedBuildingId,
+        };
+
+        try {
+            let response;
+            if (isEditing && currentRecordId) {
+                // Обновление записи
+                response = await fetch(`http://localhost:5141/api/buildingInfo/${currentRecordId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRecord),
+                });
+                if (!response.ok) throw new Error('Не удалось обновить запись');
+                console.log('Запись успешно обновлена');
+            } else {
+                // Создание новой записи
+                response = await fetch(`http://localhost:5141/api/buildingInfo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRecord),
+                });
+                if (!response.ok) throw new Error('Не удалось создать запись');
+                console.log('Новая запись успешно создана');
+            }
+
+            // Закрытие окна после сохранения
+            infoModal.style.display = 'none';
+        } catch (error) {
+            console.error('Ошибка при сохранении записи:', error);
+        }
+    }
+
+    // Функция удаления
+    async function deleteBuildingInfo(recordId) {
+        try {
+            const response = await fetch(`http://localhost:5141/api/buildingInfo/${recordId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) throw new Error('Не удалось удалить запись');
+            console.log('Запись успешно удалена');
+
+            // Закрыть модальное окно
+            infoModal.style.display = 'none';
+        } catch (error) {
+            console.error('Ошибка удаления записи:', error);
+        }
+    }
+
+    // Привязка кнопок
+    saveButton.onclick = saveBuildingInfo;
+
+    // Закрытие окна
+    if (closeInfoModalBtn) {
+        closeInfoModalBtn.onclick = () => {
+            infoModal.style.display = 'none';
+        };
+    }
+}
+
+
+
+
 
 
 /**
@@ -711,8 +844,6 @@ function openModalforPoint(callback, pointRecord, pointData) {
             if (recordsResponse.ok) {
                 const updatedRecords = await recordsResponse.json();
                 
-                // Здесь можно реализовать логику обновления списка записей в UI
-                // Например, добавление новой записи в список или перезагрузка списка
             }
     
             // Сброс полей ввода
@@ -772,6 +903,7 @@ async function updatePointRecord(photoData) {
         // Возвращаем модальное окно в режим просмотра
         insert.style.display = 'none';
         infoBlock.style.display = 'block';
+        photoViewer.style.display = 'flex';
         modalContent.style.height = '70vh';
         saveBtn.style.display = 'none';
         updateBtn.style.display = 'inline-block';
@@ -964,7 +1096,6 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         });
     }
 
-
     let currentModel;
     /**
      * Функция загрузки точек на сцену
@@ -980,7 +1111,7 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
             
             // Параллельная загрузка записей для всех точек
             const pointRecordsPromises = pointsData.map(async (pointData) => {
-                const recordsResponse = await fetch(`http://localhost:5141/api/points/${pointData.id}/records`);
+                const recordsResponse = await fetch(`http://localhost:5141/api/point/${pointData.id}/records`);
                 if (!recordsResponse.ok) {
                     console.warn(`Не удалось загрузить записи для точки ${pointData.id}`);
                     return { pointId: pointData.id, records: [] };
@@ -1057,13 +1188,13 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         const existingPoints = scene.meshes.filter(mesh => mesh.name.startsWith('point_'));
         existingPoints.forEach(point => point.dispose());
     
-        BABYLON.SceneLoader.ImportMesh('', '/assets/models/', modelPath, scene, function (meshes) {
+        BABYLON.SceneLoader.ImportMesh('', 'http://localhost:9000/assets/models/models/', modelPath, scene, function (meshes) {
             loadedModel = meshes[0];
             loadedModel.position = new BABYLON.Vector3(0, 0.5, 20);
             
             currentModel = modelPath;
             console.log("Установлена currentModel:", currentModel);
-            
+            loadBuildingInfo();
             loadPoints();
         }, null, function (scene, message, exception) {
             console.error("Ошибка загрузки модели:", message, exception);

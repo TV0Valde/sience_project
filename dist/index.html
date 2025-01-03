@@ -11,7 +11,7 @@
 <body>
 <canvas id="renderCanvas">
 </canvas>
-<div id ="aboutBuilding"><img id="quesitonMark" src="assets/images/interface/aboutBuilding.svg" alt="Информация о здании"/></div>
+<div id ="aboutBuilding"><img id="quesitonMark" src="assets/images/interface/exclamation_mark.svg" alt="Информация о здании"/></div>
 <div id="distance"></div>
 <div id="fps">0</div>
 <div id="settingPanel">
@@ -64,16 +64,38 @@
   </div>
   </div>
 
+     <!--
+        <div id="project_designation">Обозначение проекта: </div>
+        <div id="project_name">Наименование проекта: </div>
+        <div id="project_stage">Стадия: </div>
+        <div id="project_adress">Адрес участка:</div>-->
   <div id="infoModal" class="modal">
     <div class="modal-content" id="infoModal-content" >
         <span class="close">&times;</span>
         <div> Информация об объекте:</div>
-        <div class="building_info_container">
-        <div id="project_designation">Обозначение проекта: </div>
-        <div id="project_name">Наименование проекта: </div>
-        <div id="project_stage">Стадия: </div>
-        <div id="project_adress">Адрес участка:</div>
+        <div class="building_info_container" id="building_info_container">
+          <label for="project_designation"> Введите обозначение проекта:
+            <input type="text" name="project_designation" id="project_designation">
+          </label> <br>
+          <label for="project_name"> Введите наименование проекта:
+            <input type="text" name="project_name" id="project_name">
+          </label><br>
+          <label for="project_stage"> Введите стадию проекта:
+            <input type="text" name="project_stage" id="project_stage">
+          </label> <br>
+          <label for="project_adress"> Введите адрес участка:
+            <input type="text" name="project_adress" id="project_adress">
+          </label> <br>
         </div>
+        <div id="buildingInfoDisplay" style="display: none;" >
+          <p id="buildingInfoDisplay_project_designation" style="display: none;">Обозначение проекта: </p>
+          <p id="buildingInfoDisplay_project_name" style="display: none;">Наименование проекта: </p>
+          <p id="buildingInfoDisplay_project_stage" style="display: none;">Стадия проекта: </p>
+          <p id="buildingInfoDisplay_project_adress" style="display: none;">Адрес участка: </p>
+        </div>
+        <button  id="infoModal_deleteBtn">Удалить</button>
+      <button id="infoModal_saveBtn">Сохранить</button>
+      <button id="infoModal_updateBtn">Редактировать</button>
     </div>
     </div>
 
