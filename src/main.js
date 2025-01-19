@@ -78,7 +78,7 @@ const createScene = function(){
 /**
  * Создание, загрузка и настройка модели БПЛА
  */
-        const fly = BABYLON.SceneLoader.ImportMesh("", "http://localhost:9000/assets/models/models/","drone.glb", scene, function (newMeshes) {
+        const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
             drone = newMeshes[0];
             
         drone.rotationQuaternion = null;
@@ -1188,7 +1188,7 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         const existingPoints = scene.meshes.filter(mesh => mesh.name.startsWith('point_'));
         existingPoints.forEach(point => point.dispose());
     
-        BABYLON.SceneLoader.ImportMesh('', 'http://localhost:9000/assets/models/models/', modelPath, scene, function (meshes) {
+        BABYLON.SceneLoader.ImportMesh('', 'assets/models/', modelPath, scene, function (meshes) {
             loadedModel = meshes[0];
             loadedModel.position = new BABYLON.Vector3(0, 0.5, 20);
             
