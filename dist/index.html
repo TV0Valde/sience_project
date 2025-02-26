@@ -6,14 +6,29 @@
     <title>Test Project</title>
     <link rel="stylesheet" href="main.css">
     <link rel="icon" href="favicon/favicon.jpg" type="image/x-icon">
-   <!-- <link rel="stylesheet" href="css/bootstrap.css">-->
 </head>
 <body>
+<!--Экран загрузки-->
+   <div id="loadingScreen">
+    <div id="loadingSpinner"></div>
+    <span>Загрузка приложения...</span>
+</div>
+
+<!--Основное содержимое-->
+<div id="mainContainer">
 <canvas id="renderCanvas">
 </canvas>
+
+<!--Информация о модели-->
 <div id ="aboutBuilding"><img id="quesitonMark" src="assets/images/interface/exclamation_mark.svg" alt="Информация о здании"/></div>
+
+<!--Дистанция-->
 <div id="distance"></div>
-<div id="fps">0</div>
+
+<!--ФПС
+<div id="fps"></div>-->
+
+<!--Панель управления-->
 <div id="settingPanel">
   <label >Выберите модель:</label>
   <select name="model" id="model-select" class="model_select">
@@ -23,9 +38,12 @@
   <label >Выберите формат:</label>
   <select name="format" id="format-select"> 
   </select>
+
+<!--Модальное окно для работы с точками и записями-->  
 </div>
   <div id="pointModal" class="modal">
   <div class="modal-content" id="modal-content" >
+    <div id="errorMessage" class="error-message"></div>
       <span class="close">&times;</span>
       <span id="insert">
         <span>Степень повреждения в точке:</span>
@@ -40,12 +58,12 @@
             <input type="radio" name="material" value="red"> Значительная
         </label>
     </div>
-    <input type="file" id="photoInput" accept="image/*" />
+    <input type="file" id="photoInput" accept="image/*"  required/>
     <div>
     <label for="infoInput">Введите информацию о точке:</label>
-    <div><textarea id="infoInput" ></textarea></div>
+    <div><textarea id="infoInput"  required></textarea></div>
     <label for="date">Дата осмотра:</label>
-    <input type="date" name="date" id="date">
+    <input type="date" name="date" id="date" required>
   </div>
       </span>  
       <span id="info">
@@ -64,33 +82,22 @@
   </div>
   </div>
 
-     <!--
-        <div id="project_designation">Обозначение проекта: </div>
-        <div id="project_name">Наименование проекта: </div>
-        <div id="project_stage">Стадия: </div>
-        <div id="project_adress">Адрес участка:</div>-->
+  <!--Модальное окно для добавления информации о модели-->
   <div id="infoModal" class="modal">
     <div class="modal-content" id="infoModal-content" >
         <span class="close">&times;</span>
         <div> Информация об объекте:</div>
         <div class="building_info_container" id="building_info_container">
-          <label for="project_designation"> Введите обозначение проекта:
-            <input type="text" name="project_designation" id="project_designation">
-          </label> <br>
+
           <label for="project_name"> Введите наименование проекта:
             <input type="text" name="project_name" id="project_name">
           </label><br>
-          <label for="project_stage"> Введите стадию проекта:
-            <input type="text" name="project_stage" id="project_stage">
-          </label> <br>
-          <label for="project_adress"> Введите адрес участка:
+          <label for="project_adress"> Введите адрес участка: <br>
             <input type="text" name="project_adress" id="project_adress">
-          </label> <br>
+          </label><br>
         </div>
         <div id="buildingInfoDisplay" style="display: none;" >
-          <p id="buildingInfoDisplay_project_designation" style="display: none;">Обозначение проекта: </p>
           <p id="buildingInfoDisplay_project_name" style="display: none;">Наименование проекта: </p>
-          <p id="buildingInfoDisplay_project_stage" style="display: none;">Стадия проекта: </p>
           <p id="buildingInfoDisplay_project_adress" style="display: none;">Адрес участка: </p>
         </div>
         <button  id="infoModal_deleteBtn">Удалить</button>
@@ -98,6 +105,8 @@
       <button id="infoModal_updateBtn">Редактировать</button>
     </div>
     </div>
+
+  </div>
 
 <script src="/dist/bundle.js">
 </script>

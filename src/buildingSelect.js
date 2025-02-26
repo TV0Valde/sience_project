@@ -37,20 +37,19 @@ export async function fetchAllBuildings() {
     }
 }
 
-// Функция для обновления списка зданий в элементе выбора модели
+
 export function updateModelOptions() {
     const modelSelect = document.getElementById('model-select');
     modelSelect.innerHTML = '';
 
     buildingsList.forEach(building => {
-        const option = new Option(building.name, building.path); // Устанавливаем path как value
-        option.dataset.id = building.id; // Сохраняем ID как data-атрибут
+        const option = new Option(building.name, building.path); 
+        option.dataset.id = building.id; 
         modelSelect.add(option);
     });
 
-    // Обработчик изменения выбора модели
     modelSelect.addEventListener('change', (event) => {
-        // Получаем ID из data-атрибута выбранной опции
+
         const selectedOption = event.target.selectedOptions[0];
         selectedBuildingId = parseInt(selectedOption.dataset.id, 10);
         console.log("ID выбранного здания обновлено:", selectedBuildingId);
@@ -58,5 +57,5 @@ export function updateModelOptions() {
 }
 
 
-// Автоматически вызываем загрузку зданий при подключении модуля
+
 fetchAllBuildings();

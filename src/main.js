@@ -7,9 +7,33 @@ import 'babylonjs-loaders'
 import {convertRatioToExpression,GetDistance,calculateDistance, formatDate} from "./functions";
 import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSelect";
 import {fetchAllFormats} from "./formatSelect";
+import { showLoadingScreen } from './loadingScreen';
+import { KEYMAP } from './keymap';
 
-let divFps = document.getElementById("fps");
-let drone ;
+/**
+ * Переменные
+ */
+//let divFps = document.getElementById("fps");
+let droneMesh ;
+let visibilityAngel = 72;
+let visibilityFormat = convertRatioToExpression('1:1');
+let FOV = BABYLON.Tools.ToRadians(visibilityAngel);
+let iControlsBlocked = false;
+let currentModel;
+
+function lockControls(){
+    iControlsBlocked = true;
+
+    Object.keys(scene.inputStates).forEach(k => scene.inputStates[k] = false);
+  }
+
+  function unlockControls(){
+    iControlsBlocked = false;
+  }
+
+document.addEventListener("DOMContentLoaded",showLoadingScreen);
+
+
 const canvas = document.getElementById('renderCanvas');
 const engine = new BABYLON.Engine(canvas, true, {preserveDrawingBuffer: true, stencil: true});
 /**
@@ -23,7 +47,7 @@ const createScene = function(){
  * Создание и настройка Камеры
  */
   //const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
-    const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,drone);
+    const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(),scene,droneMesh);
     camera.attachControl(true);
     camera.upperBetaLimit = Math.PI / 2.2;
     camera.radius = 5; 
@@ -35,12 +59,12 @@ const createScene = function(){
  */
     let planeWidth = 0.1;
     let planeHeight = 0.1;
-    const plane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
+    const visibilityPlane = BABYLON.MeshBuilder.CreatePlane("plane", { width: planeWidth, height: planeHeight, updatable:true}, scene);
     const greenMaterial = new BABYLON.StandardMaterial("greenMaterial", scene);
-    plane.visibility = 0;
+    visibilityPlane.visibility = 0;
     greenMaterial.diffuseColor = new BABYLON.Color3(0, 1, 0);
-    plane.material = greenMaterial;
-    plane.material.alpha = 0.5;
+    visibilityPlane.material = greenMaterial;
+    visibilityPlane.material.alpha = 0.5;
 
  /**
   * Создание и настройка Света
@@ -57,190 +81,150 @@ const createScene = function(){
     skyboxMaterial.backFaceCulling = false;
     skyboxMaterial.specularColor = BABYLON.Color3.Black();
     skyboxMaterial.diffuseColor = BABYLON.Color3.Black();
-    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture('/assets/images/skybox/sky',scene);
+    skyboxMaterial.reflectionTexture = new BABYLON.CubeTexture('http://localhost:9000/assets/images/skybox/sky',scene);
     skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
     const  skybox = BABYLON.MeshBuilder.CreateBox('skybox',{
-        size:300
+        size:500
     },scene)
-    skybox.infiniteDistance = true;
     skybox.material = skyboxMaterial;
 
 /**
  * Создание и настройка Плоскости Земли
  */
-    let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 300, height: 300 });
+    let ground = BABYLON.MeshBuilder.CreateGround("ground", { width: 500, height: 500 });
     let groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
-    groundMaterial.diffuseTexture = new BABYLON.Texture("/assets/images/ground/123.jpg", scene);
+    groundMaterial.diffuseTexture = new BABYLON.Texture("http://localhost:9000/assets/images/ground/123.jpg", scene);
     ground.material = groundMaterial;
-    ground.position = new BABYLON.Vector3(0,0,0);
 
 
 /**
  * Создание, загрузка и настройка модели БПЛА
  */
-        const fly = BABYLON.SceneLoader.ImportMesh("", "/assets/models/","drone.glb", scene, function (newMeshes) {
-            drone = newMeshes[0];
-            
-        drone.rotationQuaternion = null;
-        drone.position.y = 2;
-        drone.position.x = -10;
-        drone.position.z = 0;
-        drone.scaling.z = 0.1;
-        drone.scaling.x = 0.1;
-        drone.scaling.y = 0.1;
-        camera.parent = drone;
+         BABYLON.SceneLoader.ImportMesh("", "http://localhost:9000/assets/models/","drone.glb", scene, function (newMeshes) {
+
+        droneMesh = newMeshes[0];
+
+        droneMesh.rotationQuaternion = null;
+
+        droneMesh.position.y = 2;
+        droneMesh.position.x = -10;
+        droneMesh.position.z = 0;
+
+        droneMesh.scaling.z = 0.1;
+        droneMesh.scaling.x = 0.1;
+        droneMesh.scaling.y = 0.1;
+
+        camera.parent = droneMesh;
     
-        let speed = 0.3;
+        let movingSpeed = 0.3;
         let rotationSpeed = 0.02;
-        let direction = new BABYLON.Vector3(0, 0, 1);
+        let movingDirection = new BABYLON.Vector3(0, 0, 1);
 
         /** 
          * Блок для настройки движения БПЛА
          */
-        scene.onBeforeRenderObservable.add(() => {
+        
+        
+          scene.inputStates = Object.fromEntries(
+            [...new Set(Object.values(KEYMAP))].map(k => [k, false])
+          );
           
-            if (scene.inputStates.rotateLeft) {
-                drone.rotation.y -= rotationSpeed;
-                direction = BABYLON.Vector3.TransformCoordinates(direction, BABYLON.Matrix.RotationY(-rotationSpeed));
+          const handleKeyEvent = (event, isPressed) => {
+            if (iControlsBlocked) return;
+            const action = KEYMAP[event.code];
+            if (action) {
+              scene.inputStates[action] = isPressed;
+              
+              if (['Space', 'ControlLeft'].includes(event.code)) {
+                event.preventDefault();
+                event.stopPropagation();
+              }
             }
+          };
+          
+          window.addEventListener('keydown', e => handleKeyEvent(e, true));
+          window.addEventListener('keyup', e => handleKeyEvent(e, false));
+          
+          scene.onBeforeRenderObservable.add(() => {
+            //TODO: Сделать нормальную обработку попытки спуститься ниже сцены. Добавить текстовое сообщение, вынести в функцию
+            //TODO: Сделать обработку на попытку пересечения текстуры здания и попытку вылета за скайбоксы
+            if (droneMesh.position.y < 1) { 
+                droneMesh.position.y = 1;
+            }
+            const minBoundary = -250; // половина размера skybox
+            const maxBoundary = 250;
+        
+            droneMesh.position.x = BABYLON.Scalar.Clamp(droneMesh.position.x, minBoundary+1, maxBoundary-1);
+            droneMesh.position.y = BABYLON.Scalar.Clamp(droneMesh.position.y, minBoundary+1, maxBoundary-1);
+            droneMesh.position.z = BABYLON.Scalar.Clamp(droneMesh.position.z, minBoundary+1, maxBoundary-1);
+            if (iControlsBlocked) return;
+            const {inputStates} = scene;
+            const {rotation, position} = droneMesh;
+            
+            if (inputStates.rotateLeft || inputStates.rotateRight) {
+              const angle = rotationSpeed * (inputStates.rotateLeft ? -1 : 1);
+              rotation.y += angle;
+              movingDirection = BABYLON.Vector3.TransformCoordinates(
+                movingDirection, 
+                BABYLON.Matrix.RotationY(angle)
+              );
+            }
+          
+            const MOVE_FORWARD_VECTOR = new BABYLON.Vector3(
+              movingDirection.x, 
+              0, 
+              movingDirection.z
+            ).normalize();
+            
+            const RIGHT = new BABYLON.Vector3(-MOVE_FORWARD_VECTOR.z, 0, MOVE_FORWARD_VECTOR.x);
+            const movement = BABYLON.Vector3.Zero();
+          
+            if (inputStates.forward) movement.addInPlace(MOVE_FORWARD_VECTOR);
+            if (inputStates.backward) movement.subtractInPlace(MOVE_FORWARD_VECTOR);
+            if (inputStates.left) movement.addInPlace(RIGHT);
+            if (inputStates.right) movement.subtractInPlace(RIGHT);
+            
+            if (inputStates.ascend) movement.y += 1;
+            if (inputStates.descend) movement.y -= 1;
+          
+            if (!movement.equalsToFloats(0, 0, 0)) {
+              position.addInPlace(movement.scale(movingSpeed));
+            }
+          });
 
-            if (scene.inputStates.rotateRight) {
-                drone.rotation.y += rotationSpeed;
-                direction = BABYLON.Vector3.TransformCoordinates(direction, BABYLON.Matrix.RotationY(rotationSpeed));
-            }
+        let distanceValue;
+        let outputDistanseElement = document.getElementById('distance');
+        let dronePosition =  droneMesh.position.clone();
 
-            let forward = direction.clone();
-            forward.y = 0;
-            forward = forward.normalize();
-            let right = new BABYLON.Vector3(-forward.z, 0, forward.x);
-
-            if (scene.inputStates.up) {
-                drone.position = drone.position.add(forward.scale(speed)) 
-            }
-            if (scene.inputStates.down) {
-                drone.position = drone.position.subtract(forward.scale(speed)); 
-            }
-            if (scene.inputStates.left) {
-                drone.position = drone.position.add(right.scale(speed)); 
-            }
-            if (scene.inputStates.right) {
-                drone.position = drone.position.subtract(right.scale(speed)); 
-            }
-            if (scene.inputStates.jump) {
-                drone.position.y += speed; 
-            }
-            if (scene.inputStates.crouch) {
-                drone.position.y -= speed; 
-            }
-        });
-
-        /**
-         * Блок для обработки нажатия клавиш для движения БПЛА
-         */
-        scene.inputStates = {};
-        scene.inputStates.up = false;
-        scene.inputStates.down = false;
-        scene.inputStates.left = false;
-        scene.inputStates.right = false;
-        scene.inputStates.jump = false;
-        scene.inputStates.crouch = false;
-        scene.inputStates.rotateLeft = false;
-        scene.inputStates.rotateRight = false;
-
-        window.addEventListener("keydown", (event) => {
-            switch (event.keyCode) {
-                case 38:
-                    scene.inputStates.up = true;
-                    break;
-                case 40:
-                    scene.inputStates.down = true;
-                    break;
-                case 37:
-                    scene.inputStates.left = true;
-                    break;
-                case 39:
-                    scene.inputStates.right = true;
-                    break;
-                case 104:
-                    scene.inputStates.jump = true;
-                    break;
-                case 98:
-                    scene.inputStates.crouch = true;
-                    break;
-                case 100:
-                    scene.inputStates.rotateLeft = true;
-                    break;
-                case 102:
-                    scene.inputStates.rotateRight = true;
-                    break;
-            }
-        });
-
-        window.addEventListener("keyup", (event) => {
-            switch (event.keyCode) {
-                case 38:
-                    scene.inputStates.up = false;
-                    break;
-                case 40:
-                    scene.inputStates.down = false;
-                    break;
-                case 37:
-                    scene.inputStates.left = false;
-                    break;
-                case 39:
-                    scene.inputStates.right = false;
-                    break;
-                case 104:
-                    scene.inputStates.jump = false;
-                    break;
-                case 98:
-                    scene.inputStates.crouch = false;
-                    break;
-                case 100:
-                    scene.inputStates.rotateLeft = false;
-                    break;
-                case 102:
-                    scene.inputStates.rotateRight = false;
-                    break;
-            }
-        });
-
-        let angle = 72;
-        let FOV = BABYLON.Tools.ToRadians(angle);
-        let distance;
-        let input_distance = document.getElementById('distance');
-        let point =  drone.position.clone();
-        let format = convertRatioToExpression('1:1');
         /**
          * Функция для обработки действий во время Рендеринга
          */
         scene.registerBeforeRender(function (){
-            let tmp = document.getElementById('model-select').value;
-          //  console.log(tmp);
-            divFps.innerHTML = engine.getFps().toFixed() + " fps";
-                point =  drone.position.clone();
+              // console.log(dronePosition);
+            //divFps.innerText = engine.getFps().toFixed() + " fps";
+                dronePosition =  droneMesh.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); 
-                let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, drone.getWorldMatrix());
-                let pickRay = new BABYLON.Ray(point, rotatedForwardVector, 600);
+                let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, droneMesh.getWorldMatrix());
+                let pickRay = new BABYLON.Ray(dronePosition, rotatedForwardVector, 600);
                 let hit = scene.pickWithRay(pickRay);
 
-                if (hit.pickedMesh && hit.pickedMesh !== plane) {
-                     distance = BABYLON.Vector3.Distance(drone.position,hit.pickedPoint);
-                    plane.scaling.y = 2* distance * Math.tan(FOV/2); 
-                     if (format ===1){
-                         plane.scaling.x = plane.scaling.y;   
+                if (hit.pickedMesh && hit.pickedMesh !== visibilityPlane) {
+                     distanceValue = BABYLON.Vector3.Distance(droneMesh.position,hit.pickedPoint);
+                    visibilityPlane.scaling.y = 2 * distanceValue * Math.tan(FOV/2); 
+                     if (visibilityFormat === 1){
+                         visibilityPlane.scaling.x = visibilityPlane.scaling.y;   
                      }
                      else {
-                         plane.scaling.x =  plane.scaling.y *(format);
+                         visibilityPlane.scaling.x =  visibilityPlane.scaling.y * (visibilityFormat);
                      }
-                    plane.visibility = 1;
-                    plane.position = hit.pickedPoint;
-                    plane.rotation.y = drone.rotation.y;
-                    GetDistance(input_distance,distance);
+                    visibilityPlane.visibility = 1;
+                    visibilityPlane.position = hit.pickedPoint;
+                    visibilityPlane.rotation.y = droneMesh.rotation.y;
+                    GetDistance(outputDistanseElement, distanceValue);
                    
                 }
                 else {
-                    plane.visibility = 0;
+                    visibilityPlane.visibility = 0;
                 }
                
         })
@@ -258,6 +242,7 @@ const createScene = function(){
         point.position = position;
 
         openModalforPoint(async (newRecord) => {
+            lockControls();
             try {
                 // Создание данных для точки
                 const pointData = {
@@ -276,7 +261,6 @@ const createScene = function(){
 
                 const createdPoint = await pointResponse.json();
 
-                // Создаем запись для точки
                 const pointRecordData = {
                     photoData: newRecord.photoData,
                     info: newRecord.info,
@@ -296,15 +280,13 @@ const createScene = function(){
 
                 const createdRecord = await recordResponse.json();
 
-                // Настройка материала точки
                 point.material = createMaterial(newRecord.materialName);
                 
-                // Обновление названия точки
                 point.name = `point_${createdPoint.id}`;
 
                 console.log('Точка создана:', createdPoint);
                 console.log('Запись точки создана:', createdRecord);
-
+                unlockControls(); 
             } catch (error) {
                 console.error('Ошибка при создании:', error);
                 point.dispose();
@@ -338,7 +320,6 @@ async function checkExistingPoint(position) {
     });
 }
    
-
     /**
      * Функция Удаления Точки из базы
      * @param {*} pointId id Удаляемой точки
@@ -352,10 +333,10 @@ async function checkExistingPoint(position) {
             if (response.ok) {
                 removePointFromScene(pointId); 
             } else {
-                console.error(`Failed to delete point with ID ${pointId}. Status: ${response.status}`);
+                console.error(`Не удалось удалить точку с ID: ${pointId}. Статус: ${response.status}`);
             }
         } catch (error) {
-            console.error('Error during deletion:', error);
+            console.error('Ошибка во время удаления:', error);
         }
     }
     
@@ -367,9 +348,9 @@ async function checkExistingPoint(position) {
         const pointMesh = scene.meshes.find(mesh => mesh.id === `point_${pointId}`);
         if (pointMesh) {
             scene.removeMesh(pointMesh);
-            console.log(`Mesh for point ID ${pointId} removed from scene.`);
+            console.log(` Точка с  ID ${pointId} удалена со сцены.`);
         } else {
-            console.warn(`Mesh for point ID ${pointId} not found in scene.`);
+            console.warn(` Точка с ID ${pointId} не найдена на сцене.`);
         }
     }
 
@@ -383,30 +364,29 @@ async function checkExistingPoint(position) {
         if (selectedMesh && selectedMesh.pointData && selectedMesh.pointRecords) {
             openModalForExisting(selectedMesh.pointData, selectedMesh.pointRecords);
         } else {
-            // Fetching point data
+   
             fetch(`http://localhost:5141/api/point/${selectedPointId}`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error(`Failed to fetch point data: ${response.statusText}`);
+                        throw new Error(`Ошибка получения данных: ${response.statusText}`);
                     }
                     return response.json();
                 })
                 .then(pointData => {
                     if (!pointData) {
-                        console.warn("Point data not found for ID:", selectedPointId);
+                        console.warn(`Данные точки с id: ${selectedPointId} не найдены`);
                         return;
                     }
     
-                    // Fetching associated records for the point
+
                     fetch(`http://localhost:5141/api/point/${selectedPointId}/records`)
                         .then(recordResponse => {
                             if (!recordResponse.ok) {
-                                throw new Error(`Failed to fetch records: ${recordResponse.statusText}`);
+                                throw new Error(`Проблемы при получении записи: ${recordResponse.statusText}`);
                             }
                             return recordResponse.json();
                         })
                         .then(recordsData => {
-                            // Cache the point and records data in the mesh
                             if (selectedMesh) {
                                 selectedMesh.pointData = pointData;
                                 selectedMesh.pointRecords = recordsData;
@@ -415,16 +395,15 @@ async function checkExistingPoint(position) {
                             // Open modal with both point and records data
                             openModalForExisting(pointData, recordsData);
                         })
-                        .catch(error => console.error("Error fetching point records:", error));
+                        .catch(error => console.error(" Ошибка получения записи:", error));
                 })
-                .catch(error => console.error("Error fetching point data:", error));
-        }
-    }
-    
+                .catch(error => console.error(" Ошибка получения данных точки:", error));
+        }}
     
 /**
  * Функция обработки нажатия курсором на сцену
 */
+// TODO: Сделать так, чтобы обрабатывались только нажатия на модель здания
 scene.onPointerDown = () => {
     const pickInfo = scene.pick(scene.pointerX, scene.pointerY);
     const pickedMesh = pickInfo.pickedMesh;
@@ -432,11 +411,14 @@ scene.onPointerDown = () => {
         const selectedPointId = pickedMesh.name.replace("point_", "");
         onPointSelected(selectedPointId); 
     }
-    else if (pickInfo.hit) {
+    else if (pickInfo.hit && pickedMesh.name !=="ground" && pickedMesh.name !=="skybox" && !pickedMesh.name.startsWith("point_") && pickedMesh.name !=="Object_2" ) {
         createPoint(pickInfo.pickedPoint);
     }
 };
 
+/**
+ * Загрузка элемента с информацией о здании
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const aboutBuildingDiv = document.getElementById('aboutBuilding');
 
@@ -445,11 +427,18 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
+    
     aboutBuildingDiv.addEventListener('click', () => {
+        if(currentModel != undefined){
         openInfoModal();
+    }
     });
 });
 
+/**
+ * Загрузка информации о здании
+ * @returns Информация о здании
+ */
 async function loadBuildingInfo() {
     console.log("Загрузка информации для здания:", selectedBuildingId);
     try {
@@ -464,12 +453,14 @@ async function loadBuildingInfo() {
     }
 }
 
+/**
+ * Открытие модального окна с информацией о здании
+ */
 async function openInfoModal() {
+    lockControls();
     const infoModal = document.getElementById('infoModal');
     const modalContent = document.getElementById('infoModal-content');
-    const projectDesignationInput = document.getElementById('project_designation');
     const projectNameInput = document.getElementById('project_name');
-    const projectStageInput = document.getElementById('project_stage');
     const projectAddressInput = document.getElementById('project_adress');
     const buildingInfoBlock = document.getElementById('building_info_container');
     const saveButton = document.getElementById('infoModal_saveBtn');
@@ -477,28 +468,28 @@ async function openInfoModal() {
     const updateButton = document.getElementById('infoModal_updateBtn');
     const closeInfoModalBtn = document.querySelector('#infoModal .close');
     const buildingInfoDisplay = document.getElementById('buildingInfoDisplay');
-    const projectDesignationDisplay = document.getElementById('buildingInfoDisplay_project_designation');
     const projectNameDisplay = document.getElementById('buildingInfoDisplay_project_name');
-    const projectStageDisplay = document.getElementById('buildingInfoDisplay_project_stage');
     const projectAddressDisplay = document.getElementById('buildingInfoDisplay_project_adress');
 
-    let isEditing = false; // Флаг для режима редактирования
-    let currentRecordId = null; // ID текущей записи
+    let isEditing = false; 
+    let currentRecordId = null; 
 
     if (!infoModal || !modalContent) {
         console.error("Не удалось найти модальное окно или его содержимое.");
         return;
     }
 
-    // Сброс полей ввода
+    /**
+     * Сборс полей
+     */
     function resetInputs() {
-        projectDesignationInput.value = '';
         projectNameInput.value = '';
-        projectStageInput.value = '';
         projectAddressInput.value = '';
     }
 
-    // Переключение в режим редактирования
+    /**
+     * Переключения режима модального окна в режим редактирования
+     */
     function switchToEditMode() {
         isEditing = true;
         buildingInfoDisplay.style.display = 'none';
@@ -508,7 +499,9 @@ async function openInfoModal() {
         updateButton.style.display = 'none';
     }
 
-    // Переключение в режим просмотра
+    /**
+     * Переключение режима модального окна в режим просмотра
+     */
     function switchToViewMode() {
         isEditing = false;
         buildingInfoDisplay.style.display = 'block';
@@ -516,56 +509,47 @@ async function openInfoModal() {
         saveButton.style.display = 'none';
         deleteButton.style.display = 'inline-block';
         updateButton.style.display = 'inline-block';
-        projectDesignationDisplay.style.display = `block`;
         projectNameDisplay.style.display = `block`;
-        projectStageDisplay.style.display = `block`;
         projectAddressDisplay.style.display = `block`;
     }
 
-    // Загрузка данных объекта
+    
     const buildingData = await loadBuildingInfo();
 
     if (buildingData) {
-        // Если запись существует, заполняем поля и отображаем данные
+        
         currentRecordId = buildingData.id;
-        projectDesignationInput.value = buildingData.projectDesignation || '';
         projectNameInput.value = buildingData.projectName || '';
-        projectStageInput.value = buildingData.stage || '';
         projectAddressInput.value = buildingData.areaAdress || '';
 
-        projectDesignationDisplay.textContent = `Обозначение проекта: ${buildingData.projectDesignation}`;
         projectNameDisplay.textContent = `Наименование проекта: ${buildingData.projectName}`;
-        projectStageDisplay.textContent = `Стадия проекта: ${buildingData.stage}`;
         projectAddressDisplay.textContent = `Адрес участка: ${buildingData.areaAdress}`;
 
         switchToViewMode();
 
-        // Привязка кнопки редактирования
         updateButton.onclick = () => {
             switchToEditMode();
         };
 
-        // Привязка кнопки удаления
         deleteButton.onclick = () => deleteBuildingInfo(currentRecordId);
     } else {
-        // Если записи нет, переключаемся в режим создания
+    
         resetInputs();
         currentRecordId = null;
         switchToEditMode();
     }
 
-    // Отображение модального окна
     infoModal.style.display = 'flex';
-    modalContent.style.height = '35vh';
+    modalContent.style.height = '20vh';
     modalContent.style.width = '20vw';
 
-    // Функция сохранения (создание или обновление)
+    /**
+     * Функция сохранения информации о здании
+     */
     async function saveBuildingInfo() {
         const newRecord = {
-            id:currentRecordId, // Добавляем ID записи (null, если создание)
-            projectDesignation: projectDesignationInput.value,
+            id:currentRecordId, 
             projectName: projectNameInput.value,
-            stage: projectStageInput.value,
             areaAdress: projectAddressInput.value,
             buildingId: selectedBuildingId,
         };
@@ -573,14 +557,15 @@ async function openInfoModal() {
         try {
             let response;
             if (isEditing && currentRecordId) {
-                // Обновление записи
                 response = await fetch(`http://localhost:5141/api/buildingInfo/${currentRecordId}`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newRecord),
                 });
+
                 if (!response.ok) throw new Error('Не удалось обновить запись');
                 console.log('Запись успешно обновлена');
+
             } else {
                 // Создание новой записи
                 response = await fetch(`http://localhost:5141/api/buildingInfo`, {
@@ -588,18 +573,23 @@ async function openInfoModal() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newRecord),
                 });
+                
                 if (!response.ok) throw new Error('Не удалось создать запись');
                 console.log('Новая запись успешно создана');
             }
 
-            // Закрытие окна после сохранения
             infoModal.style.display = 'none';
         } catch (error) {
             console.error('Ошибка при сохранении записи:', error);
+        } finally {
+            unlockControls();
         }
     }
 
-    // Функция удаления
+   /**
+    * Удаление информации о здании
+    * @param {*} recordId id Записи
+    */
     async function deleteBuildingInfo(recordId) {
         try {
             const response = await fetch(`http://localhost:5141/api/buildingInfo/${recordId}`, {
@@ -609,36 +599,32 @@ async function openInfoModal() {
             if (!response.ok) throw new Error('Не удалось удалить запись');
             console.log('Запись успешно удалена');
 
-            // Закрыть модальное окно
             infoModal.style.display = 'none';
         } catch (error) {
             console.error('Ошибка удаления записи:', error);
         }
+        finally {
+            unlockControls();
+          }
     }
 
-    // Привязка кнопок
     saveButton.onclick = saveBuildingInfo;
 
-    // Закрытие окна
     if (closeInfoModalBtn) {
         closeInfoModalBtn.onclick = () => {
             infoModal.style.display = 'none';
+            unlockControls();
         };
     }
 }
 
-
-
-
-
-
 /**
- * Функция открытия модального окна
+ * Функция открытия модального окна для точки
  * @param {*} callback callback-функция
  * @param {*} pointData Данные точки
  */
 function openModalforPoint(callback, pointRecord, pointData) {
-    // Получение элементов DOM
+    lockControls();
     const insert = document.getElementById("insert");
     const pointModal = document.getElementById("pointModal");
     const modalContent = document.getElementById("modal-content");
@@ -661,6 +647,60 @@ function openModalforPoint(callback, pointRecord, pointData) {
     let currentRecords = [];
     let currentRecordIndex = 0;
 
+    const errorMessage = document.getElementById('errorMessage');
+
+    function showError(message) {
+      errorMessage.textContent = message;
+      errorMessage.classList.add('visible');
+      setTimeout(() => errorMessage.classList.remove('visible'), 3000);
+    }
+  
+    function validateForm() {
+      let isValid = true;
+      const errors = [];
+      
+      const materialSelected = Array.from(materialInputs).some(input => input.checked);
+      if (!materialSelected) {
+        errors.push('Выберите степень повреждения');
+        document.querySelector('.color').classList.add('invalid-border');
+      } else {
+        document.querySelector('.color').classList.remove('invalid-border');
+      }
+  
+      const fields = [
+        {element: photoInput, error: 'Загрузите фотографию', condition: () => !photoInput.files.length},
+        {element: infoInput, error: 'Введите описание', condition: () => !infoInput.value.trim()},
+        {element: dateInput, error: 'Укажите дату', condition: () => !dateInput.value}
+      ];
+  
+      fields.forEach(({element, error, condition}) => {
+        if (condition()) {
+          errors.push(error);
+          element.classList.add('invalid');
+          isValid = false;
+        } else {
+          element.classList.remove('invalid');
+        }
+      });
+  
+      if (errors.length > 0) {
+        showError(errors[0]);
+        const firstErrorElement = [materialInputs[0].parentElement, photoInput, infoInput, dateInput]
+          .find(el => el.classList.contains('invalid') || el.classList.contains('invalid-border'));
+        
+        firstErrorElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+  
+      return isValid;
+    }
+
+    /**
+     * Обновление информации о записи
+     * @param {*} record Записи
+     */
     function updateRecordDisplay(record) {
         photoDisplay.src = record.photoData || '';
         photoDisplay.style.display = record.photoData ? 'block' : 'none';
@@ -680,8 +720,6 @@ function openModalforPoint(callback, pointRecord, pointData) {
             selectedMaterial.checked = true;
         }
 
-
-       // Управление кнопками навигации
     if (currentRecordIndex > 0) {
         prevBtn.classList.remove('disabled');
     } else {
@@ -695,7 +733,6 @@ function openModalforPoint(callback, pointRecord, pointData) {
     }
     }
 
-    // Обработчики для навигации между записями
     prevBtn.onclick = () => {
         if (!prevBtn.classList.contains('disabled')) {
             currentRecordIndex--;
@@ -710,9 +747,10 @@ function openModalforPoint(callback, pointRecord, pointData) {
         }
     };
     
-    
 
-    // Сброс полей ввода
+   /**
+    * Сброс полей
+    */
     function resetInputs() {
         photoInput.value = '';
         infoInput.value = '';
@@ -726,7 +764,10 @@ function openModalforPoint(callback, pointRecord, pointData) {
     }
     resetInputs();
 
-    // Настройка внешнего вида модального окна
+    /**
+     * Настройка внешнего вида модального окна
+     * @param {*} isExistingPoint Существует ли точка
+     */
     function configureModalLayout(isExistingPoint) {
         if (isExistingPoint) {
             modalContent.style.height = '70vh';
@@ -737,7 +778,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
             saveBtn.style.display = 'none';
             deleteBtn.style.display = 'inline-block';
             addBtn.style.display = 'inline-block';
-            // Отображение существующих данных
+
             if (pointRecord) {
 
                     photoDisplay.src = pointRecord.photoData;
@@ -746,10 +787,10 @@ function openModalforPoint(callback, pointRecord, pointData) {
                     photoDisplay.style.width = "20vw";
                     photoViewer.style.display = 'flex';
 
-                    infoDisplay.innerHTML = pointRecord.info;
+                    infoDisplay.innerText = pointRecord.info;
                     infoDisplay.style.display = 'block';
 
-                    dateDisplay.innerHTML = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
+                    dateDisplay.innerText = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
                     dateDisplay.style.display = 'block';
 
                     const selectedMaterial = Array.from(materialInputs)
@@ -758,7 +799,6 @@ function openModalforPoint(callback, pointRecord, pointData) {
                         selectedMaterial.checked = true;
                     }
 
-                // Предзаполнение полей ввода
                 infoInput.value = pointRecord.info || '';
                 dateInput.value = pointRecord.checkupDate || '';
             }
@@ -778,7 +818,6 @@ function openModalforPoint(callback, pointRecord, pointData) {
     configureModalLayout(callback === null);
 
     if (pointRecord && pointData) {
-        // Получаем все записи для точки
         fetch(`http://localhost:5141/api/point/${pointData.pointId}/records`)
             .then(response => {
                 if (!response.ok) {
@@ -790,7 +829,6 @@ function openModalforPoint(callback, pointRecord, pointData) {
                 currentRecords = records;
                 currentRecordIndex = records.findIndex(r => r.id === pointRecord.id);
                 
-                // Если индекс не найден, устанавливаем на первую запись
                 if (currentRecordIndex === -1) {
                     currentRecordIndex = 0;
                 }
@@ -802,7 +840,10 @@ function openModalforPoint(callback, pointRecord, pointData) {
             });
     }
 
-    // Утилита для получения данных файла
+    /**
+     * Утилита для получения данных файла
+     * @param {*} file Файл
+     */
     async function getFileData(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
@@ -812,6 +853,10 @@ function openModalforPoint(callback, pointRecord, pointData) {
         });
     }
 
+    /**
+     * Добавление новой записи
+     * @param {*} pointId id Точки
+     */
     async function addNewPointRecord(pointId) {
         const file = photoInput.files[0];
         const photoData = file ? await getFileData(file) : null;
@@ -839,17 +884,10 @@ function openModalforPoint(callback, pointRecord, pointData) {
             const createdRecord = await response.json();
             console.log('Новая запись добавлена:', createdRecord);
     
-            // Обновление списка записей в модальном окне
             const recordsResponse = await fetch(`http://localhost:5141/api/point/${pointId}/records`);
-            if (recordsResponse.ok) {
-                const updatedRecords = await recordsResponse.json();
-                
-            }
     
-            // Сброс полей ввода
             resetInputs();
             
-            // Закрытие режима ввода
             insert.style.display = 'none';
             infoBlock.style.display = 'block';
             modalContent.style.height = '70vh';
@@ -861,13 +899,19 @@ function openModalforPoint(callback, pointRecord, pointData) {
         } catch (error) {
             console.error('Ошибка при добавлении новой записи:', error);
             alert('Не удалось добавить новую запись. Пожалуйста, попробуйте снова.');
-        }
+        } finally {
+            unlockControls();
+          }
     }
 
-  // Обновление существующей записи
+    /**
+     * Обновление существующей записи
+     * @param {*} photoData данные фотографии
+     * @returns 
+     */
 async function updatePointRecord(photoData) {
     if (!pointRecord) {
-        console.error('No point record to update');
+        console.error('Нет точки для обновления');
         return;
     }
 
@@ -887,20 +931,18 @@ async function updatePointRecord(photoData) {
             throw new Error('Failed to update point record');
         }
 
-        // Обновляем отображение данных в модальном окне без перезагрузки
         photoDisplay.src = pointRecord.photoData;
         photoDisplay.style.display = 'block';
         photoDisplay.style.height = "20vh";
         photoDisplay.style.width = "20vw";
         photoViewer.style.display = 'flex';
 
-        infoDisplay.innerHTML = pointRecord.info;
+        infoDisplay.innerText = pointRecord.info;
         infoDisplay.style.display = 'block';
 
-        dateDisplay.innerHTML = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
+        dateDisplay.innerText = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
         dateDisplay.style.display = 'block';
 
-        // Возвращаем модальное окно в режим просмотра
         insert.style.display = 'none';
         infoBlock.style.display = 'block';
         photoViewer.style.display = 'flex';
@@ -910,26 +952,26 @@ async function updatePointRecord(photoData) {
         deleteBtn.style.display = 'inline-block';
         addBtn.style.display = 'inline-block';
 
-        console.log('Point record updated successfully');
+        console.log('Запись точки успешно обновлена');
     } catch (error) {
-        console.error('Error updating point record:', error);
-        alert('Failed to update point record. Please try again.');
-    }
+        console.error('Ошибка при обновления записи точки:', error);
+        alert('Не удалось обновить данные записи. Пожалуйста, попробуйте ещё раз.');
+    } finally {
+        unlockControls();
+      }
+    
 }
 
-// Обработчик кнопки обновления
 updateBtn.onclick = () => {
     modalContent.style.height = "30vh";
     insert.style.display = 'block';
     infoBlock.style.display = 'none';
     
-    // Скрываем display-блоки
     infoDisplay.style.display = 'none';
     dateDisplay.style.display = 'none';
     photoDisplay.style.display = 'none';
     photoViewer.style.display = 'none';
 
-    // Перенастраиваем кнопку сохранения для обновления
     saveBtn.style.display = 'inline-block';
     deleteBtn.style.display = 'none';
     saveBtn.onclick = async () => {
@@ -945,36 +987,36 @@ updateBtn.onclick = () => {
         }
     };
 };
-    // Обработчик кнопки удаления
+
     deleteBtn.onclick = async () => {
         if (pointData && pointData.pointId) {
             try {
-                // Вызов функции удаления точки
+                
                 await deletePoint(pointData.pointId);
     
-                // Закрываем модальное окно после успешного удаления
+                
                 pointModal.style.display = 'none';
     
-                // Удаление точки со сцены
+                
                 const pointMesh = scene.getMeshByName(`point_${pointData.pointId}`);
                 if (pointMesh) {
                     scene.removeMesh(pointMesh);
                 }
     
-                console.log("Point successfully deleted.");
+                console.log("Точка успешно удалена.");
                 resetInputs();
             } catch (error) {
-                console.error("Error deleting point:", error);
-                alert("Failed to delete the point. Please try again.");
+                console.error("Ошибка удаления точки:", error);
+                alert("Не удалось удалить точку. Пожалуйста, попробуйте ещё раз.");
             }
         } else {
-            console.error("Point ID is missing or undefined.");
-            alert("Point ID is required to delete the point.");
+            console.error("Точка с таким id не найдена.");
+            alert("id точки необходимо для удаления");
         }
     };
 
-    // Сохранение новой записи
     saveBtn.onclick = async () => {
+        if (!validateForm()) return;
         const file = photoInput.files[0];
         const photoData = file ? await getFileData(file) : null;
 
@@ -995,6 +1037,7 @@ updateBtn.onclick = () => {
     };
 
     addBtn.onclick = async () => {
+        if (!validateForm()) return;
       if(pointData && pointData.pointId){
         resetInputs();
 
@@ -1011,7 +1054,20 @@ updateBtn.onclick = () => {
       }
     }
 
-    // Показываем модальное окно
+  [photoInput, infoInput, dateInput].forEach(field => {
+    field.addEventListener('input', () => {
+      field.classList.remove('invalid');
+      errorMessage.classList.remove('visible');
+    });
+  });
+
+  materialInputs.forEach(input => {
+    input.addEventListener('change', () => {
+      document.querySelector('.color').classList.remove('invalid-border');
+      errorMessage.classList.remove('visible');
+    });
+  });
+
     pointModal.style.display = 'flex';
 }
 
@@ -1021,14 +1077,12 @@ updateBtn.onclick = () => {
  * @param {Object} records Связанные записи
  */
 async function openModalForExisting(existingPoint, addRecordCallback) {
-    // Проверяем наличие необходимых данных
     if (!existingPoint || !existingPoint.id) {
         console.error('Invalid existing point data');
         return;
     }
 
     try {
-        // Создаем объект pointData с pointId
         const pointData = {
             pointId: existingPoint.id
         };
@@ -1044,12 +1098,10 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
 
         const recordData = await recordResponse.json();
 
-        // Проверяем, есть ли записи для этой точки
         if (recordData.length > 0) {
-            // Если есть записи - открываем модальное окно с последней записью
+
             openModalforPoint(null, recordData[0], pointData);
         } else {
-            // Если записей нет - открываем модальное окно для добавления новой записи
             openModalforPoint(addRecordCallback, null, pointData);
         }
 
@@ -1059,7 +1111,6 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
     }
 }
 
-    
     /**
      * Функция создания материала точки
      * @param {*} materialName название материала точки
@@ -1092,11 +1143,12 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
     if (pointModal && closePointModalBtn) {
         closePointModalBtn.addEventListener('click', () => {
             pointModal.style.display = 'none';
-            
+            unlockControls()
         });
     }
 
-    let currentModel;
+
+
     /**
      * Функция загрузки точек на сцену
      */
@@ -1109,7 +1161,6 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
             
             const pointsData = await pointsResponse.json();
             
-            // Параллельная загрузка записей для всех точек
             const pointRecordsPromises = pointsData.map(async (pointData) => {
                 const recordsResponse = await fetch(`http://localhost:5141/api/point/${pointData.id}/records`);
                 if (!recordsResponse.ok) {
@@ -1131,7 +1182,6 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
                         scene
                     );
                     
-                    // Преобразование позиции
                     if (Array.isArray(pointData.position)) {
                         point.position = new BABYLON.Vector3(
                             pointData.position[0],
@@ -1146,20 +1196,16 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
                         );
                     }
                     
-                    // Получаем записи для точки
                     const pointRecordsForPoint = pointRecordsMap.get(pointData.id) || [];
                     
-                    // Используем последнюю запись для определения материала и других свойств
                     const latestRecord = pointRecordsForPoint.length > 0 
                         ? pointRecordsForPoint[pointRecordsForPoint.length - 1] 
                         : null;
                     
-                    // Установка материала (используем материал из последней записи)
                     point.material = latestRecord && latestRecord.materialName 
                         ? createMaterial(latestRecord.materialName) 
                         : createDefaultMaterial();
                     
-                    // Сохраняем полные данные точки и ее записей
                     point.pointData = pointData;
                     point.pointRecords = pointRecordsForPoint;
                 }
@@ -1170,12 +1216,15 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         }
     }
     
-    // Вспомогательная функция для создания материала по умолчанию
+    /**
+     * Вспомогательная функция для создания материала по умолчанию
+     */
     function createDefaultMaterial() {
         const defaultMaterial = new BABYLON.StandardMaterial("defaultPointMaterial", scene);
-        defaultMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5); // Серый цвет
+        defaultMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5); 
         return defaultMaterial;
     }
+
     /**
      * Функция загрузки и Отображения модель на сцене
      * @param {*} modelPath Путь до модели
@@ -1187,8 +1236,8 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
     
         const existingPoints = scene.meshes.filter(mesh => mesh.name.startsWith('point_'));
         existingPoints.forEach(point => point.dispose());
-    
-        BABYLON.SceneLoader.ImportMesh('', 'assets/models/', modelPath, scene, function (meshes) {
+
+        BABYLON.SceneLoader.ImportMesh('', 'http://localhost:9000/assets/models/', modelPath, scene, function (meshes) {
             loadedModel = meshes[0];
             loadedModel.position = new BABYLON.Vector3(0, 0.5, 20);
             
@@ -1199,6 +1248,7 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
         }, null, function (scene, message, exception) {
             console.error("Ошибка загрузки модели:", message, exception);
         });
+        console.log(currentModel);
     }
     
     
@@ -1208,8 +1258,9 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
      * Обработчик для Select Угла обзора
      */
     FOVField.addEventListener('change',function(){
-        angle = this.value;
-        FOV =BABYLON.Tools.ToRadians(angle);
+       visibilityAngel = this.value;
+        FOV =BABYLON.Tools.ToRadians(visibilityAngel);
+        this.blur();   
     });
 
     let formatField = document.getElementById('format-select');
@@ -1218,7 +1269,9 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
      * Обработчик для Select формата обзора
      */
     formatField.addEventListener('change', function(){
-        format = convertRatioToExpression(this.value);})
+        visibilityFormat = convertRatioToExpression(this.value);
+        this.blur();    
+    });
 
     let loadedModel = null;
     
@@ -1228,6 +1281,7 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
     const modelField = document.getElementById('model-select');
     modelField.addEventListener('change', function() {
         loadAndShowModel(this.value);
+        this.blur();   
     });
     
 
@@ -1235,9 +1289,11 @@ async function openModalForExisting(existingPoint, addRecordCallback) {
 }
 
 const scene = createScene();
-engine.runRenderLoop(function(){
+
+engine.runRenderLoop(function () {
     scene.render();
 });
+
 window.addEventListener('resize', function(){
     engine.resize();
 });

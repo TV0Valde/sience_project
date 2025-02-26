@@ -165,17 +165,102 @@ control_button.disabled {
 }
 
 .building_info_container label {
-    display: flex;
-    flex-direction: column;
     text-align: center; /* Выравнивание текста в label */
 }
 
 .building_info_container label input {
-    display: flex;
     align-items: center;
     margin-top: 5px; /* Отступ между текстом и полем ввода */
     border: 1px solid #ccc;
     border-radius: 4px;
     padding: 8px; /* Добавляем отступы внутри поля */
-    box-sizing: border-box;
+    box-sizing: content-box;
+    width: 15vw;
+
 }
+
+/* Стили для экрана загрузки */
+#loadingScreen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+    z-index: 1000;
+    transition: opacity 1s ease-out;
+}
+
+#loadingScreen.hidden {
+    opacity: 0;
+    pointer-events: none; /* Отключаем взаимодействие с экраном загрузки */
+}
+
+#loadingSpinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin-right: 10px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Основное содержимое */
+#mainContent {
+    display: none; /* Скрываем основное содержимое до завершения загрузки */
+}
+
+.error-message {
+    position: absolute;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #ff4444;
+    color: white;
+    padding: 12px 20px;
+    border-radius: 4px;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    z-index: 1000;
+  }
+  
+  .error-message::before {
+    content: '!';
+    background: white;
+    color: #ff4444;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+  }
+  
+  .error-message.visible {
+    display: flex;
+    animation: slideIn 0.3s ease-out;
+  }
+  
+  @keyframes slideIn {
+    from { top: -50px; opacity: 0; }
+    to { top: 15px; opacity: 1; }
+  }
+
+  #project_name{
+    margin-top: 5px;
+  }

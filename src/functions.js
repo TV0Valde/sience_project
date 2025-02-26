@@ -5,9 +5,9 @@
  * @returns 
  */
 export  function convertRatioToExpression(format) {
-    const parts = format.split(":");
-    const numerator = parseInt(parts[0]);
-    const denominator = parseInt(parts[1]);
+    const delimetr = format.split(":");
+    const numerator = parseInt(delimetr[0]);
+    const denominator = parseInt(delimetr[1]);
     return numerator / denominator;
 }
 
@@ -17,7 +17,7 @@ export  function convertRatioToExpression(format) {
  * @param {*} distance  Дистанция
  */
 export function GetDistance(htmlElement,distance){
-    htmlElement.innerHTML = `${distance.toFixed(2)} м`;
+    htmlElement.innerText = `${distance.toFixed(2)} м`;
 }
 
 /**
@@ -47,3 +47,4 @@ export function formatDate(dateString) {
         Math.pow(pos1[2] - pos2[2], 2)
     );
 }
+
