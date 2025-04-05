@@ -40,7 +40,8 @@ html, body {
     height: 30px;
     width: 30px;
 }
-#miniWindow { position: absolute; top: 10px; left: 10px; width: 200px; height: 200px; border: 1px solid black; }
+#miniWindow { position: absolute; top: 10px; left: 10px; width: 200px;  border: 1px solid black; }
+
 #fps {
         position: absolute;
         background-color: rgb(0, 110, 201);
@@ -101,6 +102,7 @@ html, body {
     text-align: center;
    
 }
+
 #settingPanel{
     color: white;
     background-color: rgb(0, 110, 201);
@@ -114,11 +116,7 @@ html, body {
     border: 2px solid white;
     border-radius: 12.5%;
 }
-#photoDisplay{
-   margin: 0 auto;
-   height: 25%;
-   width: 25%;
-}
+
 .color,#photoInput{
     margin-bottom: 10px;
 }
@@ -136,6 +134,7 @@ button{
 #photo-viewer{
     display: flex;
     align-items: center;
+    justify-content: center;
 }
 #previosly{
     height: 50px;
@@ -263,4 +262,8 @@ control_button.disabled {
 
   #project_name{
     margin-top: 5px;
+  }
+
+  #info{
+    height: 60vh;
   }

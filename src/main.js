@@ -9,17 +9,19 @@ import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSele
 import {fetchAllFormats} from "./formatSelect";
 import { showLoadingScreen } from './loadingScreen';
 import { KEYMAP } from './keymap';
+import { showError } from './showError';
 
 /**
  * Переменные
  */
-//let divFps = document.getElementById("fps");
+let divFps = document.getElementById("fps");
 let droneMesh ;
 let visibilityAngel = 72;
 let visibilityFormat = convertRatioToExpression('1:1');
 let FOV = BABYLON.Tools.ToRadians(visibilityAngel);
 let iControlsBlocked = false;
 let currentModel;
+const errorMessage = document.getElementById('errorMessage');
 
 function lockControls(){
     iControlsBlocked = true;
@@ -123,8 +125,6 @@ const createScene = function(){
         /** 
          * Блок для настройки движения БПЛА
          */
-        
-        
           scene.inputStates = Object.fromEntries(
             [...new Set(Object.values(KEYMAP))].map(k => [k, false])
           );
@@ -146,9 +146,8 @@ const createScene = function(){
           window.addEventListener('keyup', e => handleKeyEvent(e, false));
           
           scene.onBeforeRenderObservable.add(() => {
-            //TODO: Сделать нормальную обработку попытки спуститься ниже сцены. Добавить текстовое сообщение, вынести в функцию
-            //TODO: Сделать обработку на попытку пересечения текстуры здания и попытку вылета за скайбоксы
             if (droneMesh.position.y < 1) { 
+                console.log("Нельзя опуститься ниже земли");
                 droneMesh.position.y = 1;
             }
             const minBoundary = -250; // половина размера skybox
@@ -201,7 +200,7 @@ const createScene = function(){
          */
         scene.registerBeforeRender(function (){
               // console.log(dronePosition);
-            //divFps.innerText = engine.getFps().toFixed() + " fps";
+            divFps.innerText = engine.getFps().toFixed() + " fps";
                 dronePosition =  droneMesh.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); 
                 let rotatedForwardVector = BABYLON.Vector3.TransformNormal(forwardVector, droneMesh.getWorldMatrix());
@@ -540,7 +539,7 @@ async function openInfoModal() {
     }
 
     infoModal.style.display = 'flex';
-    modalContent.style.height = '20vh';
+    modalContent.style.height = '40vh';
     modalContent.style.width = '20vw';
 
     /**
@@ -647,55 +646,47 @@ function openModalforPoint(callback, pointRecord, pointData) {
     let currentRecords = [];
     let currentRecordIndex = 0;
 
-    const errorMessage = document.getElementById('errorMessage');
-
-    function showError(message) {
-      errorMessage.textContent = message;
-      errorMessage.classList.add('visible');
-      setTimeout(() => errorMessage.classList.remove('visible'), 3000);
-    }
-  
     function validateForm() {
-      let isValid = true;
-      const errors = [];
-      
-      const materialSelected = Array.from(materialInputs).some(input => input.checked);
-      if (!materialSelected) {
-        errors.push('Выберите степень повреждения');
-        document.querySelector('.color').classList.add('invalid-border');
-      } else {
-        document.querySelector('.color').classList.remove('invalid-border');
-      }
-  
-      const fields = [
-        {element: photoInput, error: 'Загрузите фотографию', condition: () => !photoInput.files.length},
-        {element: infoInput, error: 'Введите описание', condition: () => !infoInput.value.trim()},
-        {element: dateInput, error: 'Укажите дату', condition: () => !dateInput.value}
-      ];
-  
-      fields.forEach(({element, error, condition}) => {
-        if (condition()) {
-          errors.push(error);
-          element.classList.add('invalid');
-          isValid = false;
-        } else {
-          element.classList.remove('invalid');
-        }
-      });
-  
-      if (errors.length > 0) {
-        showError(errors[0]);
-        const firstErrorElement = [materialInputs[0].parentElement, photoInput, infoInput, dateInput]
-          .find(el => el.classList.contains('invalid') || el.classList.contains('invalid-border'));
+        let isValid = true;
+        const errors = [];
         
-        firstErrorElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
+        const materialSelected = Array.from(materialInputs).some(input => input.checked);
+        if (!materialSelected) {
+          errors.push('Выберите степень повреждения');
+          document.querySelector('.color').classList.add('invalid-border');
+        } else {
+          document.querySelector('.color').classList.remove('invalid-border');
+        }
+      
+        const fields = [
+          {element: photoInput, error: 'Загрузите фотографию', condition: () => !photoInput.files.length},
+          {element: infoInput, error: 'Введите описание', condition: () => !infoInput.value.trim()},
+          {element: dateInput, error: 'Укажите дату', condition: () => !dateInput.value}
+        ];
+      
+        fields.forEach(({element, error, condition}) => {
+          if (condition()) {
+            errors.push(error);
+            element.classList.add('invalid');
+            isValid = false;
+          } else {
+            element.classList.remove('invalid');
+          }
         });
+      
+        if (errors.length > 0) {
+          showError(errors[0]);
+          const firstErrorElement = [materialInputs[0].parentElement, photoInput, infoInput, dateInput]
+            .find(el => el.classList.contains('invalid') || el.classList.contains('invalid-border'));
+          
+          firstErrorElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      
+        return isValid;
       }
-  
-      return isValid;
-    }
 
     /**
      * Обновление информации о записи
@@ -704,7 +695,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
     function updateRecordDisplay(record) {
         photoDisplay.src = record.photoData || '';
         photoDisplay.style.display = record.photoData ? 'block' : 'none';
-        photoDisplay.style.height = "50vh";
+        photoDisplay.style.height = "40vh";
         photoDisplay.style.width = "20vw";
         photoViewer.style.display = record.photoData ? 'flex' : 'none';
 
@@ -770,7 +761,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
      */
     function configureModalLayout(isExistingPoint) {
         if (isExistingPoint) {
-            modalContent.style.height = '70vh';
+            modalContent.style.height = '80vh';
             modalContent.style.width = '25vw';
             modalContent.style.paddingBottom = '15px';
             insert.style.display = 'none';
@@ -783,7 +774,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
 
                     photoDisplay.src = pointRecord.photoData;
                     photoDisplay.style.display = 'block';
-                    photoDisplay.style.height = "20vh";
+                    photoDisplay.style.height = "40vh";
                     photoDisplay.style.width = "20vw";
                     photoViewer.style.display = 'flex';
 
@@ -884,13 +875,11 @@ function openModalforPoint(callback, pointRecord, pointData) {
             const createdRecord = await response.json();
             console.log('Новая запись добавлена:', createdRecord);
     
-            const recordsResponse = await fetch(`http://localhost:5141/api/point/${pointId}/records`);
-    
             resetInputs();
             
             insert.style.display = 'none';
             infoBlock.style.display = 'block';
-            modalContent.style.height = '70vh';
+            modalContent.style.height = '80vh';
             saveBtn.style.display = 'none';
             updateBtn.style.display = 'inline-block';
             deleteBtn.style.display = 'inline-block';
@@ -932,8 +921,8 @@ async function updatePointRecord(photoData) {
         }
 
         photoDisplay.src = pointRecord.photoData;
-        photoDisplay.style.display = 'block';
-        photoDisplay.style.height = "20vh";
+        photoDisplay.style.display = 'flex';
+        photoDisplay.style.height = "40vh";
         photoDisplay.style.width = "20vw";
         photoViewer.style.display = 'flex';
 
@@ -946,7 +935,7 @@ async function updatePointRecord(photoData) {
         insert.style.display = 'none';
         infoBlock.style.display = 'block';
         photoViewer.style.display = 'flex';
-        modalContent.style.height = '70vh';
+        modalContent.style.height = '80vh';
         saveBtn.style.display = 'none';
         updateBtn.style.display = 'inline-block';
         deleteBtn.style.display = 'inline-block';
@@ -1037,7 +1026,7 @@ updateBtn.onclick = () => {
     };
 
     addBtn.onclick = async () => {
-        if (!validateForm()) return;
+
       if(pointData && pointData.pointId){
         resetInputs();
 
