@@ -772,7 +772,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
 
             if (pointRecord) {
 
-                    photoDisplay.src = pointRecord.photoData;
+                    photoDisplay.src = pointRecord.photoUrl;
                     photoDisplay.style.display = 'block';
                     photoDisplay.style.height = "40vh";
                     photoDisplay.style.width = "20vw";
@@ -832,16 +832,25 @@ function openModalforPoint(callback, pointRecord, pointData) {
     }
 
     /**
-     * Утилита для получения данных файла
-     * @param {*} file Файл
+     * Загружает файл на сервер и возвращает идентификатор фото
+     * @param {File} file Файл для загрузки
+     * @returns {Promise<string>} Id загруженного фото
      */
-    async function getFileData(file) {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
+    async function uploadPhotoFile(file) {
+        const formData = new FormData();
+        formData.append("file",file);
+
+        const response = await fetch('http://localhost:5141/api/photos/upload', {
+            method: "POST",
+            body: formData
         });
+
+        if(!response.ok){
+            throw new Error ("Ошибка при загрузке фото");
+        }
+
+        const result = await response.json();
+        return result.photoId;
     }
 
     /**
@@ -850,22 +859,28 @@ function openModalforPoint(callback, pointRecord, pointData) {
      */
     async function addNewPointRecord(pointId) {
         const file = photoInput.files[0];
-        const photoData = file ? await getFileData(file) : null;
+        const formData = new FormData();
+
+        if(file){
+            try{
+                formData.append("photoFile", file);
+            } catch (error){
+                console.error("Ошибка загрузки фото:", error);
+
+                return;
+            }
+        }
     
-        const pointRecordData = {
-            photoData: photoData,
-            info: infoInput.value,
-            materialName: Array.from(materialInputs).find(input => input.checked)?.value || null,
-            checkupDate: dateInput.value,
-            buildingId: selectedBuildingId,
-            pointId: pointId
-        };
+        formData.append("pointId",pointId);
+        formData.append("info",info);
+        formData.append("materialName",Array.from(materialInputs).find(input=>input.checked)?.value || "");
+        formData.append("checkupDate",dateInput.value);
+        formData.append("buildingId",selectedBuildingId);
     
         try {
             const response = await fetch(`http://localhost:5141/api/point/${pointId}/records`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(pointRecordData)
+                body: formData
             });
     
             if (!response.ok) {
@@ -893,12 +908,12 @@ function openModalforPoint(callback, pointRecord, pointData) {
           }
     }
 
-    /**
-     * Обновление существующей записи
-     * @param {*} photoData данные фотографии
-     * @returns 
-     */
-async function updatePointRecord(photoData) {
+/**
+ * Обновление существующей записи
+ * @param {string|null} photoId ID фотографии (null если фото не менялось)
+ * @returns 
+ */
+async function updatePointRecord(photoId) {
     if (!pointRecord) {
         console.error('Нет точки для обновления');
         return;
@@ -907,7 +922,9 @@ async function updatePointRecord(photoData) {
     pointRecord.info = infoInput.value;
     pointRecord.checkupDate = dateInput.value;
     pointRecord.materialName = Array.from(materialInputs).find(input => input.checked)?.value || null;
-    pointRecord.photoData = photoData || pointRecord.photoData;
+    if(photoId !== undefined){
+        pointRecord.photoId = photoId;
+    }
 
     try {
         const response = await fetch(`http://localhost:5141/api/pointRecord/${pointRecord.id}`, {
@@ -920,10 +937,15 @@ async function updatePointRecord(photoData) {
             throw new Error('Failed to update point record');
         }
 
-        photoDisplay.src = pointRecord.photoData;
-        photoDisplay.style.display = 'flex';
-        photoDisplay.style.height = "40vh";
-        photoDisplay.style.width = "20vw";
+        if(photoRecord.photoId){
+            photoDisplay.src = `http://localhost:5141/api/photos/${pointRecord.photoUrl}`;
+            photoDisplay.style.display = 'flex';
+            photoDisplay.style.height = "40vh";
+            photoDisplay.style.width = "20vw";
+        } else {
+            photoDisplay.style.display = "none";
+        }
+
         photoViewer.style.display = 'flex';
 
         infoDisplay.innerText = pointRecord.info;
@@ -963,16 +985,18 @@ updateBtn.onclick = () => {
 
     saveBtn.style.display = 'inline-block';
     deleteBtn.style.display = 'none';
+
     saveBtn.onclick = async () => {
         const file = photoInput.files[0];
         if (file) {
-            const reader = new FileReader();
-            reader.onload = () => {
-                updatePointRecord(reader.result);
-            };
-            reader.readAsDataURL(file);
+           try{
+            const photoId = await uploadPhotoFile(file);
+            await updatePointRecord(photoId);
+           } catch(error) {
+            console.error('Ошибка загрузки фото:',error);
+           }
         } else {
-            updatePointRecord(null);
+            await updatePointRecord(null);
         }
     };
 };
@@ -1006,23 +1030,56 @@ updateBtn.onclick = () => {
 
     saveBtn.onclick = async () => {
         if (!validateForm()) return;
+        
         const file = photoInput.files[0];
-        const photoData = file ? await getFileData(file) : null;
-
+        let photoId = null;
+    
+        if (file) {
+            try {
+                photoId = await uploadPhotoFile(file);
+            } catch (error) {
+                console.error('Ошибка загрузки фото:', error);
+                alert('Не удалось загрузить фото. Пожалуйста, попробуйте еще раз.');
+                return; // Прерываем выполнение при ошибке загрузки
+            }
+        }
+    
         const newRecord = {
             info: infoInput.value,
             checkupDate: dateInput.value,
             materialName: Array.from(materialInputs).find(input => input.checked)?.value || null,
-            photoData: photoData,
+            photoId: photoId,  // Изменил photoData на photoId для согласованности
             buildingId: selectedBuildingId
         };
-
-        if (callback) {
-            callback(newRecord);
+    
+        try {
+            if (typeof callback === 'function') {
+                await callback(newRecord);
+            } else {
+                // Вариант 2: Отправка на сервер напрямую, если callback не предоставлен
+                const response = await fetch('http://localhost:5141/api/point/{pointId}/records', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newRecord)
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Ошибка при сохранении записи');
+                }
+    
+                const result = await response.json();
+                console.log('Запись сохранена:', result);
+            }
+    
+            pointModal.style.display = 'none';
+            resetInputs();
+            
+        } catch (error) {
+            console.error('Ошибка при сохранении:', error);
+            alert('Не удалось сохранить запись. Пожалуйста, попробуйте еще раз.');
         }
-
-        pointModal.style.display = 'none';
-        resetInputs();
     };
 
     addBtn.onclick = async () => {
