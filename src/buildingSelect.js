@@ -37,7 +37,6 @@ export async function fetchAllBuildings() {
     }
 }
 
-
 export function updateModelOptions() {
     const modelSelect = document.getElementById('model-select');
     modelSelect.innerHTML = '';

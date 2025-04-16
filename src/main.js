@@ -11,6 +11,7 @@ import { showLoadingScreen } from './loadingScreen';
 import { KEYMAP } from './keymap';
 import { showError } from './showError';
 
+
 /**
  * Переменные
  */
@@ -19,18 +20,18 @@ let droneMesh ;
 let visibilityAngel = 72;
 let visibilityFormat = convertRatioToExpression('1:1');
 let FOV = BABYLON.Tools.ToRadians(visibilityAngel);
-let iControlsBlocked = false;
+let isControlsBlocked = false;
 let currentModel;
 const errorMessage = document.getElementById('errorMessage');
 
 function lockControls(){
-    iControlsBlocked = true;
+    isControlsBlocked = true;
 
     Object.keys(scene.inputStates).forEach(k => scene.inputStates[k] = false);
   }
 
   function unlockControls(){
-    iControlsBlocked = false;
+    isControlsBlocked = false;
   }
 
 document.addEventListener("DOMContentLoaded",showLoadingScreen);
@@ -130,7 +131,7 @@ const createScene = function(){
           );
           
           const handleKeyEvent = (event, isPressed) => {
-            if (iControlsBlocked) return;
+            if (isControlsBlocked) return;
             const action = KEYMAP[event.code];
             if (action) {
               scene.inputStates[action] = isPressed;
@@ -156,7 +157,7 @@ const createScene = function(){
             droneMesh.position.x = BABYLON.Scalar.Clamp(droneMesh.position.x, minBoundary+1, maxBoundary-1);
             droneMesh.position.y = BABYLON.Scalar.Clamp(droneMesh.position.y, minBoundary+1, maxBoundary-1);
             droneMesh.position.z = BABYLON.Scalar.Clamp(droneMesh.position.z, minBoundary+1, maxBoundary-1);
-            if (iControlsBlocked) return;
+            if (isControlsBlocked) return;
             const {inputStates} = scene;
             const {rotation, position} = droneMesh;
             
@@ -199,7 +200,6 @@ const createScene = function(){
          * Функция для обработки действий во время Рендеринга
          */
         scene.registerBeforeRender(function (){
-              // console.log(dronePosition);
             divFps.innerText = engine.getFps().toFixed() + " fps";
                 dronePosition =  droneMesh.position.clone();
                 let forwardVector = new BABYLON.Vector3(0, 0, 1); 
@@ -233,14 +233,14 @@ const createScene = function(){
  * Функция создания точки
  * @param {*} position Координаты для создания
  */
-  const createPoint = async (position) => {
+const createPoint = async (position) => {
     let existingPoint = await checkExistingPoint(position);
-    
+
     if (!existingPoint) {
         const point = BABYLON.MeshBuilder.CreateSphere("point", { diameter: 0.5 }, scene);
         point.position = position;
 
-        openModalforPoint(async (newRecord) => {
+        openModalforPoint(async () => {
             lockControls();
             try {
                 // Создание данных для точки
@@ -260,35 +260,17 @@ const createScene = function(){
 
                 const createdPoint = await pointResponse.json();
 
-                const pointRecordData = {
-                    photoData: newRecord.photoData,
-                    info: newRecord.info,
-                    materialName: newRecord.materialName,
-                    checkupDate: newRecord.checkupDate,
-                    buildingId: selectedBuildingId,
-                    pointId: createdPoint.id
-                };
+                // Создание записи для точки
+                const createdRecord = await addNewPointRecord(createdPoint.id);
 
-                const recordResponse = await fetch(`http://localhost:5141/api/point/${createdPoint.id}/records`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(pointRecordData)
-                });
+               // console.log('Точка создана:', createdPoint);
+               // console.log('Запись точки создана:', createdRecord);
 
-                if (!recordResponse.ok) throw new Error('Не удалось создать запись точки');
-
-                const createdRecord = await recordResponse.json();
-
-                point.material = createMaterial(newRecord.materialName);
-                
-                point.name = `point_${createdPoint.id}`;
-
-                console.log('Точка создана:', createdPoint);
-                console.log('Запись точки создана:', createdRecord);
-                unlockControls(); 
+                unlockControls();
             } catch (error) {
                 console.error('Ошибка при создании:', error);
                 point.dispose();
+                unlockControls();
             }
         }, null, null);
 
@@ -296,6 +278,7 @@ const createScene = function(){
         openModalForExisting(existingPoint);
     }
 };
+
 
 /**
  * Функция для проверки существует ли точка по близости
@@ -316,7 +299,7 @@ async function checkExistingPoint(position) {
     return existingPoints.some(existingPoint => {
         const distance = calculateDistance(existingPoint.position, position.asArray());
         return distance < 0.5;
-    });
+    });;
 }
    
     /**
@@ -402,7 +385,7 @@ async function checkExistingPoint(position) {
 /**
  * Функция обработки нажатия курсором на сцену
 */
-// TODO: Сделать так, чтобы обрабатывались только нажатия на модель здания
+// TODO: Сделать так, чтобы нормально обрабатывались только нажатия на модель здания 
 scene.onPointerDown = () => {
     const pickInfo = scene.pick(scene.pointerX, scene.pointerY);
     const pickedMesh = pickInfo.pickedMesh;
@@ -439,15 +422,12 @@ document.addEventListener('DOMContentLoaded', () => {
  * @returns Информация о здании
  */
 async function loadBuildingInfo() {
-    console.log("Загрузка информации для здания:", selectedBuildingId);
     try {
         const response = await fetch(`http://localhost:5141/api/buildingInfo/byBuilding/${selectedBuildingId}`);
         if (!response.ok) throw new Error('Не удалось загрузить данные здания');
         const data = await response.json();
-        console.log("Загруженные данные здания:", data);
         return data;
     } catch (error) {
-        console.error("Ошибка загрузки данных здания:", error);
         return null;
     }
 }
@@ -693,11 +673,11 @@ function openModalforPoint(callback, pointRecord, pointData) {
      * @param {*} record Записи
      */
     function updateRecordDisplay(record) {
-        photoDisplay.src = record.photoData || '';
-        photoDisplay.style.display = record.photoData ? 'block' : 'none';
+        photoDisplay.src = `http://localhost:9000${record.photoUrl}`
+        photoDisplay.style.display = "block";
         photoDisplay.style.height = "40vh";
         photoDisplay.style.width = "20vw";
-        photoViewer.style.display = record.photoData ? 'flex' : 'none';
+        photoViewer.style.display = "flex";
 
         infoDisplay.innerHTML = record.info || '';
         infoDisplay.style.display = 'block';
@@ -714,7 +694,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
     if (currentRecordIndex > 0) {
         prevBtn.classList.remove('disabled');
     } else {
-        prevBtn.classList.add('disabled');
+       prevBtn.classList.add('disabled');
     }
 
     if (currentRecordIndex < currentRecords.length - 1) {
@@ -747,9 +727,11 @@ function openModalforPoint(callback, pointRecord, pointData) {
         infoInput.value = '';
         dateInput.value = '';
         materialInputs.forEach(input => input.checked = false);
-        photoDisplay.src = '';
+        photoDisplay.src = ``;
         photoDisplay.style.display = 'none';
-        photoViewer.style.display = 'none';
+        photoDisplay.style.height = "40vh";
+        photoDisplay.style.width = "20vw";
+        photoViewer.style.display = 'flex';
         infoDisplay.innerHTML = '';
         dateDisplay.innerHTML = '';
     }
@@ -772,7 +754,7 @@ function openModalforPoint(callback, pointRecord, pointData) {
 
             if (pointRecord) {
 
-                    photoDisplay.src = pointRecord.photoUrl;
+                    photoDisplay.src = `http://localhost:9000${pointRecord.photoUrl}`;
                     photoDisplay.style.display = 'block';
                     photoDisplay.style.height = "40vh";
                     photoDisplay.style.width = "20vw";
@@ -797,13 +779,16 @@ function openModalforPoint(callback, pointRecord, pointData) {
             modalContent.style.height = "40vh";
             updateBtn.style.display = 'none';
             insert.style.display = 'block';
-            addBtn.style.display = 'none';
-            saveBtn.style.display = 'inline-block';
+            addBtn.style.display = 'block';
+            saveBtn.style.display = 'block';
             deleteBtn.style.display = 'none';
             infoDisplay.style.display = 'none';
             dateDisplay.style.display = 'none';
+            photoDisplay.src = ``;
             photoDisplay.style.display = 'none';
-            photoViewer.style.display = 'none';
+            photoDisplay.style.height = "40vh";
+            photoDisplay.style.width = "20vw";
+            photoViewer.style.display = 'flex';
         }
     }
     configureModalLayout(callback === null);
@@ -854,10 +839,11 @@ function openModalforPoint(callback, pointRecord, pointData) {
     }
 
     /**
-     * Добавление новой записи
+     * Создание записи
      * @param {*} pointId id Точки
      */
     async function addNewPointRecord(pointId) {
+        const materialInputs = document.querySelectorAll('input[name="material"]');
         const file = photoInput.files[0];
         const formData = new FormData();
 
@@ -871,12 +857,14 @@ function openModalforPoint(callback, pointRecord, pointData) {
             }
         }
     
-        formData.append("pointId",pointId);
-        formData.append("info",info);
-        formData.append("materialName",Array.from(materialInputs).find(input=>input.checked)?.value || "");
-        formData.append("checkupDate",dateInput.value);
-        formData.append("buildingId",selectedBuildingId);
-    
+        formData.append("PointId",pointId);
+        formData.append("Info",info);
+        formData.append("MaterialName",Array.from(materialInputs).find(input=>input.checked)?.value || "");
+        formData.append("CheckupDate",dateInput.value);
+        formData.append("BuildingId",selectedBuildingId);
+        console.log("PointId:", pointId);
+
+
         try {
             const response = await fetch(`http://localhost:5141/api/point/${pointId}/records`, {
                 method: 'POST',
@@ -895,9 +883,8 @@ function openModalforPoint(callback, pointRecord, pointData) {
             insert.style.display = 'none';
             infoBlock.style.display = 'block';
             modalContent.style.height = '80vh';
-            saveBtn.style.display = 'none';
+            saveBtn.style.display = 'inline-block';
             updateBtn.style.display = 'inline-block';
-            deleteBtn.style.display = 'inline-block';
             addBtn.style.display = 'inline-block';
     
         } catch (error) {
@@ -938,12 +925,15 @@ async function updatePointRecord(photoId) {
         }
 
         if(photoRecord.photoId){
-            photoDisplay.src = `http://localhost:5141/api/photos/${pointRecord.photoUrl}`;
+            photoDisplay.src = `http://localhost:9000${pointRecord.photoUrl}`;
             photoDisplay.style.display = 'flex';
             photoDisplay.style.height = "40vh";
             photoDisplay.style.width = "20vw";
         } else {
-            photoDisplay.style.display = "none";
+            photoDisplay.src = '';
+            photoDisplay.style.display = 'none';
+            photoDisplay.style.height = "40vh";
+            photoDisplay.style.width = "20vw";
         }
 
         photoViewer.style.display = 'flex';
@@ -958,10 +948,10 @@ async function updatePointRecord(photoId) {
         infoBlock.style.display = 'block';
         photoViewer.style.display = 'flex';
         modalContent.style.height = '80vh';
-        saveBtn.style.display = 'none';
-        updateBtn.style.display = 'inline-block';
+        saveBtn.style.display = 'inline-block';
+        updateBtn.style.display = 'none';
         deleteBtn.style.display = 'inline-block';
-        addBtn.style.display = 'inline-block';
+        addBtn.style.display = 'block';
 
         console.log('Запись точки успешно обновлена');
     } catch (error) {
@@ -981,7 +971,7 @@ updateBtn.onclick = () => {
     infoDisplay.style.display = 'none';
     dateDisplay.style.display = 'none';
     photoDisplay.style.display = 'none';
-    photoViewer.style.display = 'none';
+    photoViewer.style.display = 'flex';
 
     saveBtn.style.display = 'inline-block';
     deleteBtn.style.display = 'none';
@@ -1091,12 +1081,12 @@ updateBtn.onclick = () => {
         insert.style.display = "block";
         infoBlock.style.display = "none";
 
-        saveBtn.style.display = "inline-block";
+        saveBtn.style.display = "none";
         saveBtn.onclick = () => addNewPointRecord(pointData.pointId);
 
         updateBtn.style.display = 'none';
         deleteBtn.style.display = 'none';
-        addBtn.style.display = 'none';
+        addBtn.style.display = 'inline-block';
       }
     }
 
@@ -1346,3 +1336,64 @@ window.addEventListener('resize', function(){
 
 document.addEventListener("DOMContentLoaded", fetchAllBuildings);
 document.addEventListener("DOMContentLoaded", fetchAllFormats);
+
+
+ /**
+     * Добавление новой записи
+     * @param {*} pointId id Точки
+     */
+ async function addNewPointRecord(pointId) {
+    const materialInputs = document.querySelectorAll('input[name="material"]');
+    const dateInput = document.getElementById('date');
+    const infoInput = document.getElementById("infoInput");
+    const file = photoInput.files[0];
+    const formData = new FormData();
+
+    if(file){
+        try{
+            formData.append("photoFile", file);
+        } catch (error){
+            console.error("Ошибка загрузки фото:", error);
+
+            return;
+        }
+    }
+
+    formData.append("PointId",pointId);
+    formData.append("Info",infoInput.value);
+    formData.append("MaterialName",Array.from(materialInputs).find(input=>input.checked)?.value || "");
+    formData.append("CheckupDate",dateInput.value);
+    formData.append("BuildingId",selectedBuildingId);
+    console.log("PointId:", pointId);
+
+
+    try {
+        const response = await fetch(`http://localhost:5141/api/point/${pointId}/records`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            throw new Error('Не удалось добавить новую запись');
+        }
+
+        const createdRecord = await response.json();
+        console.log('Новая запись добавлена:', createdRecord);
+
+        resetInputs();
+        
+        insert.style.display = 'none';
+        infoBlock.style.display = 'block';
+        modalContent.style.height = '80vh';
+        saveBtn.style.display = 'none';
+        updateBtn.style.display = 'none';
+        deleteBtn.style.display = 'inline-block';
+        addBtn.style.display = 'block';
+
+    } catch (error) {
+        console.error('Ошибка при добавлении новой записи:', error);
+        alert('Не удалось добавить новую запись. Пожалуйста, попробуйте снова.');
+    } finally {
+        unlockControls();
+      }
+}

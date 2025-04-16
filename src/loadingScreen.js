@@ -10,5 +10,5 @@ export function showLoadingScreen () {
             loadingScreen.style.display = "none";
             mainContent.style.display = "block";
         }, { once: true });
-    }, 5000);
+    }, 2000);
     }

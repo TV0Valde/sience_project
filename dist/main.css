@@ -218,10 +218,11 @@ control_button.disabled {
 
 /* Основное содержимое */
 #mainContent {
-    display: none; /* Скрываем основное содержимое до завершения загрузки */
+    display: none; 
 }
 
-.error-message {
+
+.info-message {
     position: absolute;
     top: 15px;
     left: 50%;
