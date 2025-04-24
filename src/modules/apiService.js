@@ -1,5 +1,16 @@
-import { API_BASE_URL, MINIO_URL } from "./constants";
+import { API_BASE_URL} from '../constants/constants'
+import { buildingInfoManager } from './buildingInfoManager';
+import { controlsManager } from './controlsManager';
+import { calculateDistance } from '../functions/distanseModule';
+import { projectNameInput, projectAddressInput, currentRecordId } from './buildingInfoManager';
+import { selectedBuildingId } from './buildingSelect';
+
 export const apiService = {
+    /**
+     * Получение информации о здании
+     * @param {*} buildingId Id здания
+     * @returns Информация о здании
+     */
     async fetchBuildingInfo(buildingId){
         try{
             const response = await fetch(`${API_BASE_URL}/buildingInfo/byBuilding/${buildingId}`);
@@ -10,31 +21,57 @@ export const apiService = {
                 return null;
             }
         },
+      
+     /**
+      * Сохраненине информации о здании
+      */   
+    async saveBuildingInfo() {
+        const newRecord = {
+            id:buildingInfoManager.currentRecordId, 
+            projectName: projectNameInput.value,
+            areaAdress: projectAddressInput.value,
+            buildingId: selectedBuildingId,
+        };
 
-    async saveBuldingInfo(date){
-        try{
-            const method = data.id ? 'PUT' : 'POST';
-            const url = data.id ? 
-            `${API_BASE_URL}/buildingInfo/${data.id}`:
-            `${API_BASE_URL}/buildingInfo`;
+        try {
+            let response;
+            if (buildingInfoManager.isEditing && buildingInfoManager.currentRecordId) {
+                response = await fetch(`${API_BASE_URL}/buildingInfo/${buildingInfoManager.currentRecordId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRecord),
+                });
 
-            const response = await fetch(url, {
-                method,
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(data)
-            });
+                if (!response.ok) throw new Error('Не удалось обновить запись');
+                console.log('Запись успешно обновлена');
 
-            if(!response.ok) throw new Error('Не удалось сохранить данные здания');
-            return await response.json();
-        } catch(error) {
-            console.error('Ошибка при сохранении информации о здании:', error);
-            throw error;
+            } else {
+                // Создание новой записи
+                response = await fetch(`${API_BASE_URL}/buildingInfo`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newRecord),
+                });
+                
+                if (!response.ok) throw new Error('Не удалось создать запись');
+                console.log('Новая запись успешно создана');
+            }
+
+            infoModal.style.display = 'none';
+        } catch (error) {
+            console.error('Ошибка при сохранении записи:', error);
+        } finally {
+            controlsManager.unlock()
         }
     },
     
+    /**
+     * Удаление информации о здании
+     * @param {*} recordId Id записи
+     */
     async deleteBuildingInfo (recordId){
         try {
-            const response = await fetch (`${API_BASE_URL}/buildingId/${recordId}`,{
+            const response = await fetch (`${API_BASE_URL}/buildingInfo/${recordId}`,{
                 method: 'DELETE'
             });
 
@@ -45,6 +82,10 @@ export const apiService = {
         }
     },
 
+    /**
+     * Проверка на существование точки по близости
+     * @param {*} position координаты точки
+     */
     async checkExistingPoint(position){
         try{
             const response = await fetch(
@@ -59,10 +100,20 @@ export const apiService = {
                 console.error("Ошибка при проверке существующих точек:",response.statusText);
                 return true;
             }
-
             const existingPoints = await response.json();
             return existingPoints.some(existingPoint => {
-                const distance = calculateDistance(existingPoint.position, position.asArray());
+                if (!existingPoint.position) return false; 
+            
+                const existingPos = Array.isArray(existingPoint.position) 
+                    ? existingPoint.position 
+                    : [existingPoint.position.x, existingPoint.position.y, existingPoint.position.z];
+            
+                
+                const newPos = Array.isArray(position) 
+                    ? position 
+                    : [position._x, position._y, position._z];
+            
+                const distance = calculateDistance(existingPos, newPos);
                 return distance < 0.5;
             });
         } catch(error){
@@ -71,11 +122,16 @@ export const apiService = {
         }
     },
 
+    /**
+     * Создание точки
+     * @param {*} position координаты точки
+     * @returns информация о точке
+     */
     async createPoint(position) {
         try{
             const pointData = {
                 buildingId : selectedBuildingId,
-                position: position.asArray()
+                position: position
             };
 
             const response = await fetch(`${API_BASE_URL}/point`,{
@@ -93,6 +149,10 @@ export const apiService = {
         }
     },
 
+    /**
+     * Удаление точки
+     * @param {*} pointId Id точки
+     */
     async deletePoint(pointId){
         try{
             const response = await fetch(`${API_BASE_URL}/point/${pointId}`,{
@@ -108,6 +168,10 @@ export const apiService = {
         }
     },
 
+    /**
+     * Получение информации о точке
+     * @param {*} pointId Id точки
+     */
     async getPointData(pointId){
         try{
             const  response = await fetch(`${API_BASE_URL}/point/${pointId}`);
@@ -121,6 +185,10 @@ export const apiService = {
         }
     },
 
+    /**
+     * Получение информации о записи
+     * @param {*} pointId Id записи
+     */
     async getPointRecords(pointId){
         try {
             const response = await fetch(`${API_BASE_URL}/point/${pointId}/records`);
@@ -134,6 +202,10 @@ export const apiService = {
         }
     },
 
+    /**
+     * Загрузка фотографии
+     * @param {*} file файл
+     */
     async uploadPhotoFile(file){
         try {
             const formData = new FormData();
@@ -155,6 +227,13 @@ export const apiService = {
         }
     },
 
+    /**
+     * Добавление записи
+     * @param {*} pointId 
+     * @param {*} recordData 
+     * @param {*} photoFile 
+     * @returns 
+     */
     async addPointRecord(pointId, recordData, photoFile) {
         try {
             const formData = new FormData();
@@ -185,6 +264,12 @@ export const apiService = {
         }
     },
 
+    /**
+     * Обновление записи
+     * @param {*} recordId 
+     * @param {*} recordData 
+     * @param {*} photoId 
+     */
     async updatePointRecord(recordId, recordData, photoId){
         try {
             if(photoId !== undefined) {
@@ -202,8 +287,19 @@ export const apiService = {
             }
         } catch (error) {
             throw new Error("Ошибка при обновлении записи точки:", error);
-            throw error;
             
+        }
+    },
+    
+    async getPointsByBuilding(){
+        try {
+            const response = await fetch(`${API_BASE_URL}/points/byBuilding/${selectedBuildingId}`);
+            if(!response.ok){
+                throw new Error(`Проблема при получении записей: ${response.statusText}`);
+            }
+            return response.json();
+        } catch (error) {
+            throw new Error("Ошибка при получении записей:", error);
         }
     }
 }

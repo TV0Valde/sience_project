@@ -4,13 +4,13 @@
 import * as BABYLON from 'babylonjs';
 import "@babylonjs/loaders/glTF";
 import 'babylonjs-loaders'
-import {convertRatioToExpression,GetDistance,calculateDistance, formatDate} from "./functions";
+import {convertRatioToExpression,GetDistance,calculateDistance, formatDate} from "./functions/distanseModule";
 import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSelect";
 import {fetchAllFormats} from "./formatSelect";
-import { showLoadingScreen } from './loadingScreen';
-import { KEYMAP } from './keymap';
+import { showLoadingScreen } from './functions/loadingScreen';
+import { KEYMAP } from './constants/keymap';
 import { showError } from './showError';
-import {MIN_BOUNDARY, MAX_BOUNDARY, DEFAULT_FORMAT, DEFAULT_FOV_ANGLE, API_BASE_URL, MINIO_URL} from './constants'
+import {MIN_BOUNDARY, MAX_BOUNDARY, DEFAULT_FORMAT, DEFAULT_FOV_ANGLE, API_BASE_URL, MINIO_URL} from './constants/constants'
 
 
 const divFps = document.getElementById("fps");

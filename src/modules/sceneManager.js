@@ -1,43 +1,14 @@
-/**
- * Импорт необходимых библиотек
- */
 import * as BABYLON from 'babylonjs';
-import "@babylonjs/loaders/glTF";
-import 'babylonjs-loaders'
-import {convertRatioToExpression} from "./functions/convertRationToExpression";
-import {fetchAllBuildings,selectedBuildingId} from "./modules/buildingSelect";
-import {fetchAllFormats} from "./modules/formatSelect";
-import {DEFAULT_FORMAT, DEFAULT_FOV_ANGLE, MINIO_URL, MIN_BOUNDARY, MAX_BOUNDARY } from './constants/constants'
-//import { sceneManager } from './modules/sceneManager';
-import { buildingInfoManager } from './modules/buildingInfoManager';
-import { pointsManager } from './modules/pointsManager';
-import { GetDistance } from './functions/distanseModule';
-import { KEYMAP } from './constants/keymap';
-import { showLoadingScreen } from './functions/loadingScreen';
+import { MINIO_URL, MIN_BOUNDARY, MAX_BOUNDARY } from '../constants/constants';
+import { buildingInfoManager } from './buildingInfoManager';
+import { pointsManager } from './pointsManager';
+import { GetDistance } from '../functions/distanseModule';
+import { KEYMAP } from '../constants/keymap';
+import { appState } from '../main';
 
-const canvas = document.getElementById("renderCanvas");
-const FOVField = document.getElementById("FOV-input");
-const formatField = document.getElementById("format-select");
-const modelField = document.getElementById("model-select");
-
-
-let currentModel;
-
-/**
- * Настройка приложения
- */
-export const appState = {
-    droneMesh: null,
-    visibilityAngel: DEFAULT_FOV_ANGLE,
-    visibilityFormat: convertRatioToExpression(DEFAULT_FORMAT),
-    FOV: BABYLON.Tools.ToRadians(DEFAULT_FOV_ANGLE),
-    isControlsBlocked: false,
-    currentModel: null,
-    loadedModel: null
-};
 const divFps = document.getElementById("fps");
 
- const sceneManager = {
+export const sceneManager = {
     createScene() {
         const scene = new BABYLON.Scene(engine);
         window.scene = scene;
@@ -363,74 +334,3 @@ const divFps = document.getElementById("fps");
                 return defaultMaterial;
     }
 };
-
-/**
- * Создание движка
- */
-const engine = new BABYLON.Engine(canvas,true, {
-    preserveDrawingBuffer: true,
-    stencil: true
-});
-
-/** 
- * Прослушиватель событий для кнопки "информация о здании"
- */
-document.addEventListener('DOMContentLoaded', () => {
-    const aboutBuildingDiv = document.getElementById('aboutBuilding');
-
-    if (!aboutBuildingDiv) {
-        console.error("Элемент aboutBuilding не найден в DOM.");
-        return;
-    }
-
-    aboutBuildingDiv.addEventListener('click', () => {
-        if(currentModel != undefined){
-            buildingInfoManager.openModal();
-    }
-    });
-});
-
-/**
- * Создание сцены
- */
-sceneManager.createScene();
-engine.runRenderLoop(function () {
-    scene.render();
-});
-
-window.addEventListener('resize', function(){
-    engine.resize();
-});
-
-/**
- * Загрузка форматов и зданий, после загрузки приложения
- */
-document.addEventListener("DOMContentLoaded", fetchAllBuildings);
-document.addEventListener("DOMContentLoaded", fetchAllFormats);
-
-
-/** 
- * Обработчик для Угла обзора
- */
-FOVField.addEventListener('change',function(){
-    appState.visibilityAngel = this.value;
-    appState.FOV = BABYLON.Tools.ToRadians(appState.visibilityAngel);
-     this.blur();   
- });
-
- /**
-  * Обработчик для Select формата обзора
-  */
- formatField.addEventListener('change', function(){
-     appState.visibilityFormat = convertRatioToExpression(this.value);
-     this.blur();    
- });
-
- /**
-  * Обработчик для Select выбранного здания
-  */
-modelField.addEventListener('change', function() {
-    sceneManager.loadAndShowModel(this.value);
-    this.blur();   
-});
-

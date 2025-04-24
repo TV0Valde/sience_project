@@ -1,5 +1,5 @@
-export let buildingsList = [];
-export let selectedBuildingId = null; // Экспортируем ID выбранного здания
+ let buildingsList = [];
+export let selectedBuildingId = 1; // Экспортируем ID выбранного здания
 
 export async function fetchAllBuildings() {
     try {
