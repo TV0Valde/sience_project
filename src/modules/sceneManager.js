@@ -230,7 +230,7 @@ export const sceneManager = {
 
         if(hit.pickedMesh && hit.pickedMesh !== visibilityPlane){
             const distanceValue = BABYLON.Vector3.Distance(droneMesh.position, hit.pickedPoint);
-
+            console.log(distanceValue);
             visibilityPlane.scaling.y = 2 * distanceValue * Math.tan(appState.FOV/2);
 
             if(appState.visibilityFormat === 1){
@@ -243,9 +243,18 @@ export const sceneManager = {
             visibilityPlane.position = hit.pickedPoint;
             visibilityPlane.rotation.y = droneMesh.rotation.y;
 
+            if(distanceValue <= 10)
+            {
+                outputDistanseElement.style.backgroundColor = "red";
+            }
+            else {
+                outputDistanseElement.style.backgroundColor = "blue";
+            }
 
             if(outputDistanseElement){
                 GetDistance(outputDistanseElement, distanceValue);
+                console.log(distanceValue);
+
             }
         } else{
             visibilityPlane.visibility = 0;
@@ -261,7 +270,7 @@ export const sceneManager = {
 
             if(pickedMesh.name.startsWith("point_")) {
                 const selectedPointId = pickedMesh.name.replace("point_", "");
-                pointsManager.handlePointSelection(selectedPointId);
+               // pointsManager.handlePointSelection(selectedPointId);
             }    else if(
                 pickedMesh.name !== "ground" &&
                 pickedMesh.name !== "skubox" &&

@@ -1,8 +1,8 @@
 import { API_BASE_URL} from '../constants/constants'
 import { buildingInfoManager } from './buildingInfoManager';
 import { controlsManager } from './controlsManager';
-import { calculateDistance } from '../functions/distanseModule';
-import { projectNameInput, projectAddressInput, currentRecordId } from './buildingInfoManager';
+//import { calculateDistance } from '../functions/distanseModule';
+import { projectNameInput, projectAddressInput } from './buildingInfoManager';
 import { selectedBuildingId } from './buildingSelect';
 
 export const apiService = {
@@ -86,39 +86,67 @@ export const apiService = {
      * Проверка на существование точки по близости
      * @param {*} position координаты точки
      */
-    async checkExistingPoint(position){
-        try{
+    async checkExistingPoint(position) {
+        try {
+            // Добавляем buildingId в запрос, чтобы получить только точки текущего здания
             const response = await fetch(
-                `${API_BASE_URL}/points?x=${position.x}&y=${position.y}&z=${position.z}`,
+                `${API_BASE_URL}/points?buildingId=${selectedBuildingId}&x=${position.x}&y=${position.y}&z=${position.z}`,
                 {
                     method: 'GET',
                     headers: {'Content-Type': 'application/json'}
                 }
             );
-
-            if(!response.ok) {
-                console.error("Ошибка при проверке существующих точек:",response.statusText);
-                return true;
+    
+            if (!response.ok) {
+                console.error("Ошибка при проверке существующих точек:", response.statusText);
+                return true; // Возвращаем true как защитный механизм
             }
+            
             const existingPoints = await response.json();
+            
+            // Определяем функцию для расчета расстояния
+            const calculateDistance = (pos1, pos2) => {
+                const dx = pos1[0] - pos2[0];
+                const dy = pos1[1] - pos2[1];
+                const dz = pos1[2] - pos2[2];
+                return Math.sqrt(dx * dx + dy * dy + dz * dz);
+            };
+            
+            // Нормализуем новую позицию
+            const newPos = Array.isArray(position) 
+                ? position 
+                : [position._x || position.x, position._y || position.y, position._z || position.z];
+            
+            // Проверяем каждую существующую точку
             return existingPoints.some(existingPoint => {
-                if (!existingPoint.position) return false; 
-            
-                const existingPos = Array.isArray(existingPoint.position) 
-                    ? existingPoint.position 
-                    : [existingPoint.position.x, existingPoint.position.y, existingPoint.position.z];
-            
+                // Нормализуем позицию существующей точки
+                let existingPos;
                 
-                const newPos = Array.isArray(position) 
-                    ? position 
-                    : [position._x, position._y, position._z];
-            
+                if (Array.isArray(existingPoint.position)) {
+                    existingPos = existingPoint.position;
+                } else if (existingPoint.position) {
+                    existingPos = [
+                        existingPoint.position.x, 
+                        existingPoint.position.y, 
+                        existingPoint.position.z
+                    ];
+                } else {
+                    existingPos = [
+                        existingPoint.x || 0, 
+                        existingPoint.y || 0, 
+                        existingPoint.z || 0
+                    ];
+                }
+                
                 const distance = calculateDistance(existingPos, newPos);
+                console.log(`Расстояние до точки ${existingPoint.id}: ${distance}`);
+                
+                // Если расстояние меньше порогового значения, считаем точки слишком близкими
                 return distance < 0.5;
             });
-        } catch(error){
-            console.error('Ошибка при проверки существующих точек:', error);
-            return true;
+        } catch (error) {
+            console.error('Ошибка при проверке существующих точек:', error);
+            return true; // Возвращаем true как защитный механизм
         }
     },
 
@@ -131,7 +159,7 @@ export const apiService = {
         try{
             const pointData = {
                 buildingId : selectedBuildingId,
-                position: position
+                position: position.asArray()
             };
 
             const response = await fetch(`${API_BASE_URL}/point`,{
@@ -241,12 +269,12 @@ export const apiService = {
             if(photoFile){
                 formData.append("photoFile", photoFile);
             }
-
+            
             formData.append("pointId", pointId);
-            formData.append("Info", recordData.info);
-            formData.append("MaterialName", recordData.materialName);
-            formData.append("CheckupDate", recordData.checkupDate);
-            formData.append("BuildingId", selectedBuildingId);
+            formData.append("info", recordData.info);
+            formData.append("materialName", recordData.materialName);
+            formData.append("checkupDate", recordData.checkupDate);
+            formData.append("buildingId", selectedBuildingId);
 
             const response = await fetch(`${API_BASE_URL}/point/${pointId}/records`,{
                 method: 'POST',
@@ -264,30 +292,43 @@ export const apiService = {
         }
     },
 
-    /**
-     * Обновление записи
-     * @param {*} recordId 
-     * @param {*} recordData 
-     * @param {*} photoId 
-     */
-    async updatePointRecord(recordId, recordData, photoId){
+    async updatePointRecord(recordId, recordData, pointId, buildingId, photoFile) {
         try {
-            if(photoId !== undefined) {
-                recordData.photoId = photoId;
+            const formData = new FormData();
+            
+            // Добавляем все необходимые поля
+            formData.append("id", recordId);
+            formData.append("info", recordData.info || '');
+            formData.append("materialName", recordData.materialName || '');
+            formData.append("checkupDate", recordData.checkupDate || '');
+            formData.append("pointId", pointId);
+            formData.append("buildingId", buildingId);
+            
+            if (photoFile) {
+                formData.append("photoFile", photoFile);
             }
-
+            
+            // Если у нас есть photoId, добавляем его
+            if (recordData.photoId) {
+                formData.append("photoId", recordData.photoId);
+            }
+    
             const response = await fetch(`${API_BASE_URL}/pointRecord/${recordId}`, {
                 method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(recordData)
+                body: formData
             });
-
-            if(!response.ok){
-                throw new Error('Не удалось обновить запись точки')
+    
+            if (!response.ok) {
+                throw new Error('Не удалось обновить запись точки');
             }
-        } catch (error) {
-            throw new Error("Ошибка при обновлении записи точки:", error);
             
+            // Получаем обновленные данные с сервера
+            const updatedRecord = await response.json();
+            console.log('Обновленная запись получена:', updatedRecord);
+            return updatedRecord;
+        } catch (error) {
+            console.error("Ошибка при обновлении записи точки:", error);
+            throw error;
         }
     },
     

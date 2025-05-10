@@ -290,7 +290,7 @@ const divFps = document.getElementById("fps");
 
             if(pickedMesh.name.startsWith("point_")) {
                 const selectedPointId = pickedMesh.name.replace("point_", "");
-                pointsManager.handlePointSelection(selectedPointId);
+                //pointsManager.handlePointSelection(selectedPointId);
             }    else if(
                 pickedMesh.name !== "ground" &&
                 pickedMesh.name !== "skubox" &&

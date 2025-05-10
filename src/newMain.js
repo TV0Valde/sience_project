@@ -4,30 +4,29 @@
 import * as BABYLON from 'babylonjs';
 import "@babylonjs/loaders/glTF";
 import 'babylonjs-loaders'
-import {convertRatioToExpression,GetDistance,calculateDistance, formatDate} from "./functions/distanseModule";
-import {buildingsList, fetchAllBuildings,selectedBuildingId} from"./buildingSelect";
-import {fetchAllFormats} from "./formatSelect";
-import { showLoadingScreen } from './functions/loadingScreen';
+import {convertRatioToExpression} from "./functions/convertRationToExpression";
+import {fetchAllBuildings,selectedBuildingId} from "./modules/buildingSelect";
+import {fetchAllFormats} from "./modules/formatSelect";
+import {DEFAULT_FORMAT, DEFAULT_FOV_ANGLE, MINIO_URL, MIN_BOUNDARY, MAX_BOUNDARY } from './constants/constants'
+//import { sceneManager } from './modules/sceneManager';
+import { buildingInfoManager } from './modules/buildingInfoManager';
+import { pointsManager } from './modules/pointsManager';
+import { GetDistance } from './functions/distanseModule';
 import { KEYMAP } from './constants/keymap';
-import { showError } from './showError';
-import {MIN_BOUNDARY, MAX_BOUNDARY, DEFAULT_FORMAT, DEFAULT_FOV_ANGLE, API_BASE_URL, MINIO_URL} from './constants/constants'
+import { showLoadingScreen } from './functions/loadingScreen';
 
-
-const divFps = document.getElementById("fps");
 const canvas = document.getElementById("renderCanvas");
-const infoMessage = document.getElementById("infoMessage");
 const FOVField = document.getElementById("FOV-input");
 const formatField = document.getElementById("format-select");
 const modelField = document.getElementById("model-select");
-const projectNameInput = document.getElementById("project_name");
-const projectAddressInput = document.getElementById("project_adress");
-const materialInputs = document.querySelectorAll('input[name="material"]');
-const dateInput = document.getElementById('date');
-const infoInput = document.getElementById("infoInput");
-const photoInput = document.getElementById("photoInput");
+
+
 let currentModel;
 
-const appState = {
+/**
+ * Настройка приложения
+ */
+export const appState = {
     droneMesh: null,
     visibilityAngel: DEFAULT_FOV_ANGLE,
     visibilityFormat: convertRatioToExpression(DEFAULT_FORMAT),
@@ -36,316 +35,9 @@ const appState = {
     currentModel: null,
     loadedModel: null
 };
+const divFps = document.getElementById("fps");
 
-const engine = new BABYLON.Engine(canvas,true, {
-    preserveDrawingBuffer: true,
-    stencil: true
-});
-
-const controlsManager =  {
-    lock() {
-        appState.isControlsBlocked = true;
-        if(window.scene) {
-            Object.keys(window.scene.inputStates || {}).forEach(x => window.scene.inputStates[x] = false);        
-    }
-},
-    unlock() {
-        appState.isControlsBlocked = false;
-    }
-}
-
-const formValidator = {
-    validateForm(materialInputs, photoInput, infoInput, dateInput) {
-        let isValid = true;
-        const errors = [];
-
-        const materialSelected = Array.from(materialInputs).some(input => input.checked);
-        if(!materialSelected){
-            errors.push('Выберите степень повреждения');
-            document.querySelector('.color').classList.add('invalid-border');
-        } else {
-            document.querySelector('.color').classList.remove('invalid-border');
-        }
-
-        const fields = [
-            {element: photoInput, error: 'Загрузите фотографию', condition: ()=> !photoInput.files.length},
-            {element: infoInput, error: 'Введите описание', condition: () => !infoInput.value.trim()},
-            {element: dateInput, error: 'Укажите дату', condition: () => !dateInput.value}
-        ];
-
-        fields.forEach(({element, error, condition}) => {
-            if (condition()) {
-              errors.push(error);
-              element.classList.add('invalid');
-              isValid = false;
-            } else {
-              element.classList.remove('invalid');
-            }
-          });
-
-        if(errors.length > 0) {
-            showError(errors[0]);
-            const firstErrorElement = [materialInputs[0].parentElement, photoInput, infoInput, dateInput]
-            .find(el => el.classList.contains('invalid') || el.classList.contains('invaid-border'));
-
-            if(firstErrorElement){
-                firstErrorElement.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
-            }
-        }
-        return isValid;
-    },
-
-    setupFormListeners(inputs, materialInputs) {
-        inputs.forEach(field => {
-            field.addEventListener('input', () => {
-                field.classList.remove('invalid');
-                infoMessage.classList.remove('visible');
-            });
-        });
-
-        materialInputs.forEach(input => {
-            input.addEventListener('change', () => {
-                document.querySelector('.color').classList.remove('invalid-border');
-                infoMessage.classList.remove('visible');
-            });
-        });
-    }
-};
-
-const apiService = {
-    async fetchBuildingInfo(buildingId){
-        try{
-            const response = await fetch(`${API_BASE_URL}/buildingInfo/byBuilding/${buildingId}`);
-            if(!response.ok) throw new Error("Не удалось загрузить данные здания");
-            return await response.json();
-        } catch (error) {
-                console.error("Ошибка при загрузке информции о здании:", error);
-                return null;
-            }
-        },
-
-    async saveBuildingInfo() {
-        const newRecord = {
-            id:buildingInfoManager.currentRecordId, 
-            projectName: projectNameInput.value,
-            areaAdress: projectAddressInput.value,
-            buildingId: selectedBuildingId,
-        };
-
-        try {
-            let response;
-            console.log(buildingInfoManager.isEditing);
-            console.log(buildingInfoManager.currentRecordId);
-            if (buildingInfoManager.isEditing && buildingInfoManager.currentRecordId) {
-                response = await fetch(`${API_BASE_URL}/buildingInfo/${buildingInfoManager.currentRecordId}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newRecord),
-                });
-
-                if (!response.ok) throw new Error('Не удалось обновить запись');
-                console.log('Запись успешно обновлена');
-
-            } else {
-                // Создание новой записи
-                response = await fetch(`${API_BASE_URL}/buildingInfo`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newRecord),
-                });
-                
-                if (!response.ok) throw new Error('Не удалось создать запись');
-                console.log('Новая запись успешно создана');
-            }
-
-            infoModal.style.display = 'none';
-        } catch (error) {
-            console.error('Ошибка при сохранении записи:', error);
-        } finally {
-            controlsManager.unlock()
-        }
-    },
-    
-    async deleteBuildingInfo (recordId){
-        try {
-            const response = await fetch (`${API_BASE_URL}/buildingInfo/${recordId}`,{
-                method: 'DELETE'
-            });
-
-            if(!response.ok) throw new Error('Не удалось удалить запись');
-        } catch (error){
-            console.error("Ошибка при удалении записи информации о здании:", error);
-            throw error;
-        }
-    },
-
-    async checkExistingPoint(position){
-        try{
-            const response = await fetch(
-                `${API_BASE_URL}/points?x=${position.x}&y=${position.y}&z=${position.z}`,
-                {
-                    method: 'GET',
-                    headers: {'Content-Type': 'application/json'}
-                }
-            );
-
-            if(!response.ok) {
-                console.error("Ошибка при проверке существующих точек:",response.statusText);
-                return true;
-            }
-
-            const existingPoints = await response.json();
-            return existingPoints.some(existingPoint => {
-                const distance = calculateDistance(existingPoint.position, position);
-                return distance < 0.5;
-            });
-        } catch(error){
-            console.error('Ошибка при проверки существующих точек:', error);
-            return true;
-        }
-    },
-
-    async createPoint(position) {
-        try{
-            const pointData = {
-                buildingId : selectedBuildingId,
-                position: position
-            };
-
-            const response = await fetch(`${API_BASE_URL}/point`,{
-                method: 'POST',
-                headers: {'Content-Type':'application/json'},
-                body: JSON.stringify(pointData)
-            });
-
-            if(!response.ok) throw new Error('Не удалось создать точку');
-            return await response.json();
-
-        } catch(error){
-            console.error('Ошибка при создании точки:', error);
-            throw error;
-        }
-    },
-
-    async deletePoint(pointId){
-        try{
-            const response = await fetch(`${API_BASE_URL}/point/${pointId}`,{
-                method: 'DELETE'
-            });
-
-            if(!response.ok) 
-            throw new Error(`Не удалось удалить точку с ID: ${pointId}. Статус ${response.status} `);
-        return true;
-        } catch(error){
-            console.error('Ошибка при удалении точки', error);
-            throw error;
-        }
-    },
-
-    async getPointData(pointId){
-        try{
-            const  response = await fetch(`${API_BASE_URL}/point/${pointId}`);
-            
-            if(!response.ok)
-            throw new Error('Ошибка получения данных', response.statusText);
-
-            return await response.json();
-        } catch(error){
-            console.error('Ошибка при получени данных точки', error);
-        }
-    },
-
-    async getPointRecords(pointId){
-        try {
-            const response = await fetch(`${API_BASE_URL}/point/${pointId}/records`);
-            if(!response.ok){
-                throw new Error(`Проблема при получении записи: ${response.statusText}`);
-            }
-            return response.json();
-        } catch (error) {
-            console.error('Ошибка при получении записей',error);
-            throw error;
-        }
-    },
-
-    async uploadPhotoFile(file){
-        try {
-            const formData = new FormData();
-            formData.append('file',file);
-
-            const response = await fetch(`${API_BASE_URL}/photos/upload`, {
-                method: 'POST',
-                body: formData
-            });
-            if(!response.ok){
-                throw new Error("Ошибка при загрузке фото");
-            }
-
-            const result = await response.json();
-            return result.photoId;
-        } catch (error) {
-            console.error('Ошибка при загрузке фото',error);
-            throw error;
-        }
-    },
-
-    async addPointRecord(pointId, recordData, photoFile) {
-        try {
-            const formData = new FormData();
-
-            if(photoFile){
-                formData.append("photoFile", photoFile);
-            }
-
-            formData.append("pointId", pointId);
-            formData.append("Info", recordData.info);
-            formData.append("MaterialName", recordData.materialName);
-            formData.append("CheckupDate", recordData.checkupDate);
-            formData.append("BuildingId", selectedBuildingId);
-
-            const response = await fetch(`${API_BASE_URL}/point/${pointId}/records`,{
-                method: 'POST',
-                body: formData
-            });
-
-            if(!response.ok){
-                throw new Error('Не удалось добавить новую запись');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error("Ошибка при добавлении записи точки:", error);
-            throw error;
-        }
-    },
-
-    async updatePointRecord(recordId, recordData, photoId){
-        try {
-            if(photoId !== undefined) {
-                recordData.photoId = photoId;
-            }
-
-            const response = await fetch(`${API_BASE_URL}/pointRecord/${recordId}`, {
-                method: 'PUT',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(recordData)
-            });
-
-            if(!response.ok){
-                throw new Error('Не удалось обновить запись точки')
-            }
-        } catch (error) {
-            throw new Error("Ошибка при обновлении записи точки:", error);
-            throw error;
-            
-        }
-    }
-}
-
-const sceneManager = {
+ const sceneManager = {
     createScene() {
         const scene = new BABYLON.Scene(engine);
         window.scene = scene;
@@ -356,9 +48,9 @@ const sceneManager = {
         this.setupSkybox(scene);
         this.setupGround(scene);
         this.loadDroneMesh(scene);
-
+        pointsManager.loadPoints(selectedBuildingId,scene);
         this.setupPointInteraction(scene);
-
+        document.addEventListener("DOMContentLoaded",showLoadingScreen);
        scene.registerBeforeRender(() => this.beforeRenderUpdate(scene));
 
         return scene;
@@ -598,7 +290,7 @@ const sceneManager = {
 
             if(pickedMesh.name.startsWith("point_")) {
                 const selectedPointId = pickedMesh.name.replace("point_", "");
-                pointsManager.handlePointSelection(selectedPointId);
+                //pointsManager.handlePointSelection(selectedPointId);
             }    else if(
                 pickedMesh.name !== "ground" &&
                 pickedMesh.name !== "skubox" &&
@@ -663,117 +355,26 @@ const sceneManager = {
                 break;
          }
          return material;
-    }
-};
-
-const buildingInfoManager = {
-    isEditing:true,
-    currentRecordId: null,
-    async loadBuildingInfo() {
-        return await apiService.fetchBuildingInfo(selectedBuildingId);
     },
 
-    async openModal(pointRecord) {
-        controlsManager.lock();
-
-        const infoModal = document.getElementById('infoModal');
-        const modalContent = document.getElementById('infoModal-content');
-        const buildingInfoBlock = document.getElementById('building_info_container');
-        const saveButton = document.getElementById('infoModal_saveBtn');
-        const deleteButton = document.getElementById('infoModal_deleteBtn');
-        const updateButton = document.getElementById('infoModal_updateBtn');
-        const closeInfoModalButton = document.querySelector('#infoModal .close');
-        const buildingInfoDisplay = document.getElementById('buildingInfoDisplay');
-        const projectNameDisplay = document.getElementById('buildingInfoDisplay_project_name');
-        const projectAddressDisplay = document.getElementById('buildingInfoDisplay_project_adress');
-    
-    
-        if (!infoModal || !modalContent) {
-            console.error("Не удалось найти модальное окно или его содержимое.");
-            return;
-        }
-    
-        /**
-         * Сброс полей
-         */
-        function resetInputs() {
-            projectNameInput.value = '';
-            projectAddressInput.value = '';
-        }
-    
-        /**
-         * Переключения режима модального окна в режим редактирования
-         */
-        function switchToEditMode() {
-            buildingInfoManager.isEditing = true;
-            buildingInfoDisplay.style.display = 'none';
-            buildingInfoBlock.style.display = 'flex';
-            saveButton.style.display = 'inline-block';
-            deleteButton.style.display = 'none';
-            updateButton.style.display = 'none';
-        }
-    
-        /**
-         * Переключение режима модального окна в режим просмотра
-         */
-        function switchToViewMode() {
-            buildingInfoManager.isEditing = false;
-            buildingInfoDisplay.style.display = 'block';
-            buildingInfoBlock.style.display = 'none';
-            saveButton.style.display = 'none';
-            deleteButton.style.display = 'inline-block';
-            updateButton.style.display = 'inline-block';
-            projectNameDisplay.style.display = `block`;
-            projectAddressDisplay.style.display = `block`;
-        }
-        const buildingData = await this.loadBuildingInfo();
-
-        if(buildingData) {
-            buildingInfoManager.currentRecordId = buildingData.id,
-            projectNameInput.value = buildingData.projectName || '';
-            projectAddressInput.value = buildingData.areaAdress || '';
-
-            projectNameDisplay.textContent = `Наименование проекта: ${buildingData.projectName}`;
-            projectAddressDisplay.textContent =  `Адрес участка: ${buildingData.areaAdress}`;
-
-            switchToViewMode();
-
-            updateButton.onclick = () => {
-                switchToEditMode();
-            };
-
-            deleteButton.onclick = async () => {
-                try {
-                    await apiService.deleteBuildingInfo(currentRecordId);
-                    infoModal.style.display = 'none';
-                } catch (error) {
-                    console.error('Ошибка при удалении информации о здании', error);                    
-                } finally {
-                    controlsManager.unlock();
-                }
-            };
-        } else {
-            resetInputs();
-            buildingInfoManager.currentRecordId = null;
-            switchToEditMode();
-        }
-
-        infoModal.style.display = 'flex';
-        modalContent.style.height = '40wh';
-        modalContent.style.width = '20vw';
-
-        saveButton.onclick =  async () => apiService.saveBuildingInfo();
-
-        if(closeInfoModalButton) {
-            closeInfoModalButton.onclick = () => {
-                infoModal.style.display = 'none';
-                controlsManager.unlock();
-            };
-        }
+    createDefaultMaterial() {
+         const defaultMaterial = new BABYLON.StandardMaterial("defaultPointMaterial", scene);
+                defaultMaterial.diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5); 
+                return defaultMaterial;
     }
 };
 
+/**
+ * Создание движка
+ */
+const engine = new BABYLON.Engine(canvas,true, {
+    preserveDrawingBuffer: true,
+    stencil: true
+});
 
+/** 
+ * Прослушиватель событий для кнопки "информация о здании"
+ */
 document.addEventListener('DOMContentLoaded', () => {
     const aboutBuildingDiv = document.getElementById('aboutBuilding');
 
@@ -782,15 +383,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    
     aboutBuildingDiv.addEventListener('click', () => {
         if(currentModel != undefined){
             buildingInfoManager.openModal();
     }
-
     });
 });
 
+/**
+ * Создание сцены
+ */
 sceneManager.createScene();
 engine.runRenderLoop(function () {
     scene.render();
@@ -800,16 +402,19 @@ window.addEventListener('resize', function(){
     engine.resize();
 });
 
+/**
+ * Загрузка форматов и зданий, после загрузки приложения
+ */
 document.addEventListener("DOMContentLoaded", fetchAllBuildings);
 document.addEventListener("DOMContentLoaded", fetchAllFormats);
 
 
 /** 
- * Обработчик для Select Угла обзора
+ * Обработчик для Угла обзора
  */
 FOVField.addEventListener('change',function(){
     appState.visibilityAngel = this.value;
-     FOV = BABYLON.Tools.ToRadians(appState.visibilityAngel);
+    appState.FOV = BABYLON.Tools.ToRadians(appState.visibilityAngel);
      this.blur();   
  });
 
@@ -821,356 +426,11 @@ FOVField.addEventListener('change',function(){
      this.blur();    
  });
 
+ /**
+  * Обработчик для Select выбранного здания
+  */
 modelField.addEventListener('change', function() {
     sceneManager.loadAndShowModel(this.value);
     this.blur();   
 });
 
-const pointsManager = {
-    async createNewPoint(position) {
-        let existingPoint = await apiService.checkExistingPoint(position);
-
-        if(!existingPoint){
-            const point = BABYLON.MeshBuilder.CreateSphere("point", {diameter:0.5}, scene);
-            point.position = position;
-            console.log(point.position);
-         try {
-            const createdPoint = await apiService.createPoint();
-            const recordData = {
-                info:infoInput.value,
-                checkupDate:dateInput.value,
-                materialName:Array.from(materialInputs).find(input => input.checked)?.value || null
-            }
-            const createdRecord = await apiService.addPointRecord(createdPoint.id,recordData, photoInput.files[0]);
-            controlsManager.unlock();
-        
-        } catch (error) {
-            console.error("Ошибка при создании:",error);
-            point.dispose();
-            controlsManager.unlock();
-        }}
-    },
-    async openModal() {
-        controlsManager.lock();
-        const insert = document.getElementById("insert");
-        const pointModal = document.getElementById("pointModal");
-        const modalContent = document.getElementById("modal-content");
-        const infoBlock = document.getElementById('info');
-        const dateInput = document.getElementById('date');
-        const infoInput = document.getElementById("infoInput");
-        const photoInput = document.getElementById("photoInput");
-        const materialInputs = document.querySelectorAll('input[name="material"]');
-        const photoDisplay = document.getElementById("photoDisplay");
-        const infoDisplay = document.getElementById("infoDisplay");
-        const dateDisplay = document.getElementById('dateDisplay');
-        const addBtn = document.getElementById('addBtn');
-        const deleteBtn = document.getElementById('deleteBtn');
-        const updateBtn = document.getElementById('updateBtn');
-        const saveBtn = document.getElementById("saveBtn");
-        const photoViewer = document.getElementById("photo-viewer");
-        const prevBtn = document.getElementById("previosly");
-        const nextBtn = document.getElementById("next");
-        const isUpdateMode = false;
-        let currentRecords = [];
-        let currentRecordIndex = 0;
-
-        function updateRecordDisplay(record){
-            photoDisplay.src = `${MINIO_URL}/${record.photoUrl}`;
-            photoDisplay.style.display = "block";
-            photoDisplay.style.height = "40vh";
-            photoDisplay.style.width = "20vw";
-            photoViewer.style.display = "flex";
-    
-            infoDisplay.innerHTML = record.info || '';
-            infoDisplay.style.display = 'block';
-    
-            dateDisplay.innerHTML = `Дата осмотра: ${formatDate(record.checkupDate)}`;
-            dateDisplay.style.display = 'block';
-    
-            const selectedMaterial = Array.from(materialInputs)
-                .find(input => input.value === record.materialName);
-            if (selectedMaterial) {
-                selectedMaterial.checked = true;
-            }
-    
-        if (currentRecordIndex > 0) {
-            prevBtn.classList.remove('disabled');
-        } else {
-           prevBtn.classList.add('disabled');
-        }
-    
-        if (currentRecordIndex < currentRecords.length - 1) {
-            nextBtn.classList.remove('disabled');
-        } else {
-            nextBtn.classList.add('disabled');
-        }
-        };
-
-        prevBtn.onclick = () => {
-            if (!prevBtn.classList.contains('disabled')) {
-                currentRecordIndex--;
-                updateRecordDisplay(currentRecords[currentRecordIndex]);
-            }
-        };
-        
-        nextBtn.onclick = () => {
-            if (!nextBtn.classList.contains('disabled')) {
-                currentRecordIndex++;
-                updateRecordDisplay(currentRecords[currentRecordIndex]);
-            }
-        };
-
-        function resetInputs() {
-            photoInput.value = '';
-            infoInput.value = '';
-            dateInput.value = '';
-            materialInputs.forEach(input => input.checked = false);
-            photoDisplay.src = ``;
-            photoDisplay.style.display = 'none';
-            photoDisplay.style.height = "40vh";
-            photoDisplay.style.width = "20vw";
-            photoViewer.style.display = 'flex';
-            infoDisplay.innerHTML = '';
-            dateDisplay.innerHTML = '';
-        };
-        resetInputs();
-
-        function configureModalLayout(isExistingPoint) {
-            if (isExistingPoint) {
-                modalContent.style.height = '80vh';
-                modalContent.style.width = '25vw';
-                modalContent.style.paddingBottom = '15px';
-                insert.style.display = 'none';
-                updateBtn.style.display = 'inline-block';
-                saveBtn.style.display = 'none';
-                deleteBtn.style.display = 'inline-block';
-                addBtn.style.display = 'inline-block';
-    
-                if (pointRecord) {
-    
-                        photoDisplay.src = `http://localhost:9000${pointRecord.photoUrl}`;
-                        photoDisplay.style.display = 'block';
-                        photoDisplay.style.height = "40vh";
-                        photoDisplay.style.width = "20vw";
-                        photoViewer.style.display = 'flex';
-    
-                        infoDisplay.innerText = pointRecord.info;
-                        infoDisplay.style.display = 'block';
-    
-                        dateDisplay.innerText = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
-                        dateDisplay.style.display = 'block';
-    
-                        const selectedMaterial = Array.from(materialInputs)
-                            .find(input => input.value === pointRecord.materialName);
-                        if (selectedMaterial) {
-                            selectedMaterial.checked = true;
-                        }
-    
-                    infoInput.value = pointRecord.info || '';
-                    dateInput.value = pointRecord.checkupDate || '';
-                }
-            } else {
-                modalContent.style.height = "40vh";
-                updateBtn.style.display = 'none';
-                insert.style.display = 'block';
-                addBtn.style.display = 'block';
-                saveBtn.style.display = 'block';
-                deleteBtn.style.display = 'none';
-                infoDisplay.style.display = 'none';
-                dateDisplay.style.display = 'none';
-                photoDisplay.src = ``;
-                photoDisplay.style.display = 'none';
-                photoDisplay.style.height = "40vh";
-                photoDisplay.style.width = "20vw";
-                photoViewer.style.display = 'flex';
-            }
-        }
-
-        if (pointRecord && pointData) {
-            fetch(`${API_BASE_URL}/point/${pointData.pointId}/records`)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Не удалось получить записи точки');
-                    }
-                    return response.json();
-                })
-                .then(records => {
-                    currentRecords = records;
-                    currentRecordIndex = records.findIndex(r => r.id === pointRecord.id);
-                    
-                    if (currentRecordIndex === -1) {
-                        currentRecordIndex = 0;
-                    }
-    
-                    updateRecordDisplay(currentRecords[currentRecordIndex]);
-                })
-                .catch(error => {
-                    console.error('Ошибка при получении записей:', error);
-                });
-        };
-
-        async function addNewPointRecord(pointId){
-            const recordData = {
-                info:infoInput.value,
-                checkupDate:dateInput.value,
-                materialName:Array.from(materialInputs).find(input => input.checked)?.value || null
-            };
-           const createdRecord = apiService.addPointRecord(pointId,recordData,photoInput.files[0]);
-            resetInputs();
-
-            insert.style.display = 'none';
-            infoBlock.style.display = 'block';
-            modalContent.style.height = '80vh';
-            saveBtn.style.display = 'inline-block';
-            updateBtn.style.display = 'inline-block';
-            addBtn.style.display = 'inline-block';
-        }
-
-        async function updatePointRecord(photoId){
-            const recordData = {
-                info:infoInput.value,
-                checkupDate:dateInput.value,
-                materialName:Array.from(materialInputs).find(input => input.checked)?.value || null
-            };
-            apiService.updatePointRecord(pointRecord.id,recordData,photoId);
-            if(photoRecord.photoId){
-                photoDisplay.src = `http://localhost:9000${pointRecord.photoUrl}`;
-                photoDisplay.style.display = 'flex';
-                photoDisplay.style.height = "40vh";
-                photoDisplay.style.width = "20vw";
-            } else {
-                photoDisplay.src = '';
-                photoDisplay.style.display = 'none';
-                photoDisplay.style.height = "40vh";
-                photoDisplay.style.width = "20vw";
-            }
-    
-            photoViewer.style.display = 'flex';
-    
-            infoDisplay.innerText = pointRecord.info;
-            infoDisplay.style.display = 'block';
-    
-            dateDisplay.innerText = `Дата осмотра: ${formatDate(pointRecord.checkupDate)}`;
-            dateDisplay.style.display = 'block';
-    
-            insert.style.display = 'none';
-            infoBlock.style.display = 'block';
-            photoViewer.style.display = 'flex';
-            modalContent.style.height = '80vh';
-            saveBtn.style.display = 'inline-block';
-            updateBtn.style.display = 'none';
-            deleteBtn.style.display = 'inline-block';
-            addBtn.style.display = 'block';
-    
-        }
-        updateBtn.onclick = () => {
-            modalContent.style.height = "30vh";
-            insert.style.display = 'block';
-            infoBlock.style.display = 'none';
-            isUpdateMode = true;
-            infoDisplay.style.display = 'none';
-            dateDisplay.style.display = 'none';
-            photoDisplay.style.display = 'none';
-            photoViewer.style.display = 'flex';
-        
-            saveBtn.style.display = 'inline-block';
-            deleteBtn.style.display = 'none';
-        };
-        deleteBtn.onclick = async () => {
-            if (pointData && pointData.pointId) {
-                try {
-                    
-                    await deletePoint(pointData.pointId);
-        
-                    
-                    pointModal.style.display = 'none';
-        
-                    
-                    const pointMesh = scene.getMeshByName(`point_${pointData.pointId}`);
-                    if (pointMesh) {
-                        scene.removeMesh(pointMesh);
-                    }
-        
-                    console.log("Точка успешно удалена.");
-                    resetInputs();
-                } catch (error) {
-                    console.error("Ошибка удаления точки:", error);
-                    alert("Не удалось удалить точку. Пожалуйста, попробуйте ещё раз.");
-                }
-            } else {
-                console.error("Точка с таким id не найдена.");
-                alert("id точки необходимо для удаления");
-            }
-        };
-
-        saveBtn.onclick = async () => {
-            if(!isUpdateMode){
-            if (!validateForm()) return;
-            
-            const file = photoInput.files[0];
-            let photoId = null;
-        
-            if (file) {
-                try {
-                    photoId = await uploadPhotoFile(file);
-                } catch (error) {
-                    console.error('Ошибка загрузки фото:', error);
-                    alert('Не удалось загрузить фото. Пожалуйста, попробуйте еще раз.');
-                    return; // Прерываем выполнение при ошибке загрузки
-                }
-            }
-        
-            const newRecord = {
-                info: infoInput.value,
-                checkupDate: dateInput.value,
-                materialName: Array.from(materialInputs).find(input => input.checked)?.value || null,
-                photoId: photoId,  // Изменил photoData на photoId для согласованности
-                buildingId: selectedBuildingId
-            };
-        
-            try {
-                if (typeof callback === 'function') {
-                    await callback(newRecord);
-                } else {
-                    // Вариант 2: Отправка на сервер напрямую, если callback не предоставлен
-                    const response = await fetch('http://localhost:5141/api/point/{pointId}/records', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify(newRecord)
-                    });
-        
-                    if (!response.ok) {
-                        throw new Error('Ошибка при сохранении записи');
-                    }
-        
-                    const result = await response.json();
-                    console.log('Запись сохранена:', result);
-                }
-        
-                pointModal.style.display = 'none';
-                resetInputs();
-                
-            } catch (error) {
-                console.error('Ошибка при сохранении:', error);
-                alert('Не удалось сохранить запись. Пожалуйста, попробуйте еще раз.');
-            }
-        }
-        saveBtn.onclick = async () => {
-            const file = photoInput.files[0];
-            if (file) {
-               try{
-                const photoId = await uploadPhotoFile(file);
-                await updatePointRecord(photoId);
-               } catch(error) {
-                console.error('Ошибка загрузки фото:',error);
-               }
-            } else {
-                await updatePointRecord(null);
-            }
-        };
-        };
-    }
-
-}
