@@ -176,6 +176,15 @@ export const pointsManager = {
               dateInput.value = pointRecord.checkupDate || '';
               infoBlock.style.display = 'none';
           }
+          if(mode === 'view')
+          {
+            infoBlock.style.flexDirection = 'column';
+            infoBlock.style.justifyContent = 'center';
+            infoBlock.style.alignItems = 'center';
+            
+            photoViewer.style.justifyContent = 'center';
+            photoViewer.style.margin = 'auto';
+          }
   
           if (mode === 'create') {
               resetInputs();

@@ -6,13 +6,17 @@
     <title>Test Project</title>
     <link rel="stylesheet" href="main.css">
     <link rel="icon" href="favicon/favicon.jpg" type="image/x-icon">
+  
 </head>
 <body>
   
 <!--Экран загрузки-->
    <div id="loadingScreen">
-    <div id="loadingSpinner"></div>
-    <span>Загрузка приложения...</span>
+    <div class="loading-bar">
+      <div class="progress" id="progress"></div>
+    </div>
+    <div class="percentage" id="percentage">0%</div>
+  </div>
 </div>
 
 <!--Основное содержимое-->
@@ -76,8 +80,8 @@
       <span id="info">
         <p id="dateDisplay" style="display: none;"></p>
         <div id="photo-viewer">
-         <img id="previosly" src="assets/images/interface/left.svg" alt="назад"/>
-      <img class="control_button" id="photoDisplay" src="" alt="Фото" style="display:none;" />
+         <img class="control_button" id ="previosly" src ="assets/images/interface/left.svg" alt="назад"/>
+      <img id ="photoDisplay" src="" alt="Фото" style="display:none;" />
       <img class="control_button" id="next" src="assets/images/interface/right.svg" alt="вперёд"/>
       </div>
       <p id="infoDisplay" style="display: none;" ></p>

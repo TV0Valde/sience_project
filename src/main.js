@@ -20,6 +20,18 @@ const FOVField = document.getElementById("FOV-input");
 const formatField = document.getElementById("format-select");
 const modelField = document.getElementById("model-select");
 
+function resizeCanvasToDisplaySize() {
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.floor(window.innerWidth * ratio);
+    const height = Math.floor(window.innerHeight * ratio);
+    
+    if (canvas.width !== width || canvas.height !== height) {
+        canvas.width = width;
+        canvas.height = height;
+    }
+}
+
+resizeCanvasToDisplaySize();
 
 let currentModel;
 
@@ -57,7 +69,8 @@ const divFps = document.getElementById("fps");
     },
 
     setupCamera(scene){
-        const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(), scene, appState.droneMesh);
+        const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
+        //const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(), scene, appState.droneMesh);
         camera.attachControl(true);
         camera.upperBetaLimit = Math.PI/ 2.2;
         camera.radius = 5;
@@ -122,7 +135,7 @@ const divFps = document.getElementById("fps");
         BABYLON.SceneLoader.ImportMesh(
             "",
             `${MINIO_URL}/assets/models/`,
-            'drone.glb',
+            'BPLA.glb',
             scene,
             (newMeshes) => {
                 const droneMesh = newMeshes[0];
@@ -275,7 +288,16 @@ const divFps = document.getElementById("fps");
 
             if(outputDistanseElement){
                 GetDistance(outputDistanseElement, distanceValue);
+                if(distanceValue < 10)
+                {
+                    outputDistanseElement.style.backgroundColor ="red";
+                }
+                else
+                {
+                    outputDistanseElement.style.backgroundColor ="#006ec9";
+                }
             }
+
         } else{
             visibilityPlane.visibility = 0;
         }
@@ -398,9 +420,12 @@ engine.runRenderLoop(function () {
     scene.render();
 });
 
-window.addEventListener('resize', function(){
+window.addEventListener("resize", () => {
+    resizeCanvasToDisplaySize();
+    engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
     engine.resize();
 });
+
 
 /**
  * Загрузка форматов и зданий, после загрузки приложения
