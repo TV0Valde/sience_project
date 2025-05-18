@@ -69,8 +69,8 @@ const divFps = document.getElementById("fps");
     },
 
     setupCamera(scene){
-        const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
-        //const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(), scene, appState.droneMesh);
+        //const camera = new BABYLON.ArcRotateCamera("camera", -Math.PI/2,Math.PI/2, 5,new BABYLON.Vector3() , scene);
+        const camera = new BABYLON.FollowCamera("camera", new BABYLON.Vector3(), scene, appState.droneMesh);
         camera.attachControl(true);
         camera.upperBetaLimit = Math.PI/ 2.2;
         camera.radius = 5;
@@ -135,7 +135,7 @@ const divFps = document.getElementById("fps");
         BABYLON.SceneLoader.ImportMesh(
             "",
             `${MINIO_URL}/assets/models/`,
-            'BPLA.glb',
+            'drone.glb',
             scene,
             (newMeshes) => {
                 const droneMesh = newMeshes[0];

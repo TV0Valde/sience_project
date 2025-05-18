@@ -183,7 +183,6 @@ export const pointsManager = {
             infoBlock.style.alignItems = 'center';
             
             photoViewer.style.justifyContent = 'center';
-            photoViewer.style.margin = 'auto';
           }
   
           if (mode === 'create') {
@@ -317,6 +316,9 @@ export const pointsManager = {
           } catch (error) {
               console.error("Ошибка удаления точки:", error);
               alert("Не удалось удалить точку. Попробуйте снова.");
+          }
+                    finally{
+            controlsManager.unlock();
           }
       };
   
