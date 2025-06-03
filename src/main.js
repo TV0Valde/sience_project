@@ -14,11 +14,13 @@ import { pointsManager } from './modules/pointsManager';
 import { GetDistance } from './functions/distanseModule';
 import { KEYMAP } from './constants/keymap';
 import { showLoadingScreen } from './functions/loadingScreen';
+import { controlsManager } from './modules/controlsManager';
 
 const canvas = document.getElementById("renderCanvas");
 const FOVField = document.getElementById("FOV-input");
 const formatField = document.getElementById("format-select");
 const modelField = document.getElementById("model-select");
+const droneWarning= document.getElementById('DroneWariningModal');
 
 function resizeCanvasToDisplaySize() {
     const ratio = window.devicePixelRatio || 1;
@@ -162,6 +164,11 @@ const divFps = document.getElementById("fps");
         const rotationSpeed = 0.02;
         let movingDirection = new BABYLON.Vector3(0, 0, 1);
 
+        const tiltLimit = 0.3;
+        const tiltSpeed = 0.02;
+        const returnSpeed = 0.01;
+
+
         scene.inputStates = Object.fromEntries(
             [...new Set(Object.values(KEYMAP))].map(k => [k,false])
         );
@@ -186,6 +193,7 @@ const divFps = document.getElementById("fps");
         scene.onBeforeRenderObservable.add(() => {
             if(!droneMesh) return;
 
+            
             if(droneMesh.position.y < 1){
                 droneMesh.position.y = 1;
             }
@@ -228,12 +236,18 @@ const divFps = document.getElementById("fps");
 
             const RIGHT = new BABYLON.Vector3(-MOVE_FORWARD_VECTOR.z, 0, MOVE_FORWARD_VECTOR.x);
             const movement = BABYLON.Vector3.Zero();
-
+           
             if(inputStates.forward) movement.addInPlace(MOVE_FORWARD_VECTOR);
             if(inputStates.backward) movement.subtractInPlace(MOVE_FORWARD_VECTOR);
             if(inputStates.left) movement.addInPlace(RIGHT);
             if(inputStates.right) movement.subtractInPlace(RIGHT);
-
+            if(inputStates.tiltForward) {
+                rotation.x = Math.min((rotation.x+tiltSpeed), tiltLimit);
+            }
+            if(inputStates.tiltReset){
+                if(rotation.x > 0)
+                    rotation.x = Math.max(rotation.x - returnSpeed,0);
+            }
             if(inputStates.ascend) movement.y += 1;
             if(inputStates.descend) movement.y -= 1;
 
@@ -291,6 +305,8 @@ const divFps = document.getElementById("fps");
                 if(distanceValue < 10)
                 {
                     outputDistanseElement.style.backgroundColor ="red";
+                    droneWarning.style.display = 'flex';
+                  setTimeout(() =>  droneWarning.style.display = 'none',3000);
                 }
                 else
                 {

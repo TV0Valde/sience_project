@@ -1,5 +1,7 @@
-export function showError(message) {
-    errorMessage.textContent = message;
-    errorMessage.classList.add('visible');
-    setTimeout(() => errorMessage.classList.remove('visible'), 3000);
+export function showErrorModal(message) {
+  let warningPointModal = document.getElementById('warningPointModal');
+  let warningPointModalMessage = document.getElementById('warningPointModalMessage');
+    warningPointModal.style.display = 'block';
+    warningPointModalMessage.textContent = message;
+    setTimeout(() => warningPointModal.style.display = 'none', 3000);
   }

@@ -44,14 +44,21 @@
   <select name="format" id="format-select"> 
   </select>
 
+<div id="DroneWariningModal" class="modal">
+    <div class="modal-content">
+        <p style="margin: 0;">Вы приближаетесь слижком близко к объекту, пожалуйста отлетите подальше</p>
+    </div>
+
+</div>  
+
 <!--Модальное окно для работы с точками и записями-->  
 </div>
   <div id="pointModal" class="modal">
   <div class="modal-content" id="modal-content" >
-    <div id="errorModal" class="modal">
+    <div id="warningPointModal" class="modal">
       <div class="modal-content">
-        <span class="close-btn" id="errorModalClose">&times;</span>
-        <p id="errorModalMessage"></p>
+        <img src="./assets/images/interface/error_image.svg" height="25px" width="25px" style="margin-right: 5px;">
+        <p id="warningPointModalMessage" style="margin-top: 5px;"></p>
       </div>
     </div>
     
@@ -69,7 +76,7 @@
           <input type="radio" name="material" value="green">В (Незначительная)
       </label>
     </div>
-    <input type="file" id="photoInput" accept="image/*"  required/>
+    <input type="file" id="photoInput" accept="image/*" required/>
     <div>
     <label for="infoInput">Введите информацию о точке:</label>
     <div><textarea id="infoInput"  required></textarea></div>
@@ -88,12 +95,12 @@
     </span> 
     <span class="button_block">
       <button  id="deleteBtn">Удалить</button>
-      <button id="saveBtn">Сохранить</button>
+      <button type="button" id="saveBtn">Сохранить</button>
       <button id="updateBtn">Редактировать</button>
       <button id="addBtn">Добавить</button>
       </span>
   </div>
-  </div>
+</div>
 
   <!--Модальное окно для добавления информации о модели-->
   <div id="infoModal" class="modal">

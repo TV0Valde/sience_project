@@ -1,4 +1,6 @@
-const formValidator = {
+import { showErrorModal } from "../showError";
+
+export const formValidator = {
     validateForm(materialInputs, photoInput, infoInput, dateInput) {
         let isValid = true;
         const errors = [];
@@ -28,7 +30,7 @@ const formValidator = {
           });
 
         if (errors.length > 0) {
-    showErrorModal(errors[0]);  // <== Здесь
+    showErrorModal(errors[0]); 
     const firstErrorElement = [materialInputs[0].parentElement, photoInput, infoInput, dateInput]
         .find(el => el.classList.contains('invalid') || el.classList.contains('invaid-border'));
 

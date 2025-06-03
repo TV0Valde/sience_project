@@ -4,7 +4,8 @@ import { sceneManager } from './sceneManager';
 import { controlsManager } from './controlsManager';
 import { API_BASE_URL, MINIO_URL } from '../constants/constants';
 import { selectedBuildingId } from './buildingSelect';
-import {formatDate} from '../functions/formatDate'
+import {formatDate} from '../functions/formatDate';
+import {formValidator} from './formValidator';
 
 
 export const pointsManager = {
@@ -335,6 +336,7 @@ export const pointsManager = {
       addBtn.onclick = () => configureModalLayout('create');
   
       saveBtn.onclick = async () => {
+                if (!formValidator.validateForm(materialInputs, photoInput, infoInput, dateInput)) return;
           try {
               if (mode === 'edit') {
                   await updatePointRecord();

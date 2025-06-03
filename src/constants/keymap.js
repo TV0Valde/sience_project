@@ -4,7 +4,8 @@ export const KEYMAP = {
     'KeyS': 'backward',
     'KeyA': 'left',
     'KeyD': 'right',
-    
+    'KeyT':'tiltForward',
+    'KeyG': 'tiltReset',
     // Поворот 
     'KeyQ': 'rotateLeft',
     'KeyE': 'rotateRight',

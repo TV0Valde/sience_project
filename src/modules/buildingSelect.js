@@ -23,7 +23,6 @@ export async function fetchAllBuildings() {
             id: building.id
         }));
 
-        // Устанавливаем ID по умолчанию для выбранного здания (если есть)
         const selectedBuilding = buildingsList.find(building => building.selected);
         if (selectedBuilding) {
             selectedBuildingId = selectedBuilding.id;
