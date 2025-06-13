@@ -120,7 +120,7 @@ const divFps = document.getElementById("fps");
         skyboxMaterial.reflectionTexture.coordinatesMode = BABYLON.Texture.SKYBOX_MODE;
 
         const skybox = BABYLON.MeshBuilder.CreateBox('skybox', {size: 500}, scene);
-        skybox.material= skyboxMaterial;
+        skybox.material = skyboxMaterial;
     },
 
     setupGround(scene){
