@@ -2,7 +2,7 @@ export let formatList = [];
 
 export async function fetchAllFormats() {
     try{
-        const response = await fetch('http://localhost:5141/api/format', {
+        const response = await fetch('http://83.222.16.222:5141/api/format', {
             method:'GET',
             headers: {
                 'Content-Type': 'application/json'
