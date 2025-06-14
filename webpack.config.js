@@ -10,6 +10,11 @@ module.exports ={
     },
 
     devServer: {
+ host: '0.0.0.0',
+  port: 8080,
+allowedHosts: ['digitalshadows.run.place'],
+  hot: true,
+  historyApiFallback: true,        
         open: {
             target: 'index.html' // указываем цель открытия
         },
