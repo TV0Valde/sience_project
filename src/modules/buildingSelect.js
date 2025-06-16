@@ -5,7 +5,7 @@ export let selectedBuildingId = 1; // Экспортируем ID выбранн
 
 export async function fetchAllBuildings() {
     try {
-        const response = await fetch(`${API_BASE_URL}building`, {
+        const response = await fetch(`${API_BASE_URL}/building`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
