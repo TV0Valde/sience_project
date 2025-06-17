@@ -1,9 +1,11 @@
- let buildingsList = [];
+import { API_BASE_URL } from "../constants/constants";
+
+let buildingsList = [];
 export let selectedBuildingId = 1; // Экспортируем ID выбранного здания
 
 export async function fetchAllBuildings() {
     try {
-        const response = await fetch('http://localhost:5141/api/building', {
+        const response = await fetch(`${API_BASE_URL}/building`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
