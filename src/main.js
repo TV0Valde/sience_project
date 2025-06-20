@@ -127,7 +127,7 @@ const divFps = document.getElementById("fps");
         const ground = BABYLON.MeshBuilder.CreateGround("ground", {width: 500, height: 500});
         const groundMaterial = new BABYLON.StandardMaterial("groundMaterial", scene);
         groundMaterial.diffuseTexture = new BABYLON.Texture(
-            `${MINIO_URL}/assets/images/ground/123.jpg`,
+            `${MINIO_URL}/assets/images/ground/grass.jpg`,
             scene
         );
         ground.material = groundMaterial;
